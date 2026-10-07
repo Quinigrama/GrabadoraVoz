@@ -1124,11 +1124,20 @@ document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt')
 function fmtMB(b){ return fmt(b / 1048576, 1) + ' MB'; }
 $('bkDown').onclick = () => {
   if (!clips.size) return status($('bkStatus'), 'Todavía no hay sílabas que guardar.', 'err');
-  const blob = buildBackup(), url = URL.createObjectURL(blob), a = document.createElement('a');
+  const blob = buildBackup(), msg = 'Copia de ' + clips.size + ' sílabas (' + fmtMB(blob.size) + ').';
+  if (claudeDl){
+    claudeDl.save({ filename: backupName(), data: blob })
+      .then(() => status($('bkStatus'), msg + ' Guardada.', 'ok'))
+      .catch(e => status($('bkStatus'), e && e.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí. Prueba desde tu web en GitHub.', e && e.code === 'declined' ? '' : 'err'));
+    return;
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = backupName(); document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-  status($('bkStatus'), 'Copia de ' + clips.size + ' sílabas (' + fmtMB(blob.size) + '). Mira en tu carpeta de Descargas.', 'ok');
+  status($('bkStatus'), msg + ' Mira en tu carpeta de Descargas.', 'ok');
 };
+let claudeDl = null;
+if (window.claude && window.claude.use) window.claude.use('downloads').then(d => { claudeDl = d; }).catch(() => {});
 try { if (navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array(1)], 'a.zip', { type: 'application/zip' })] })) $('bkShare').hidden = false; } catch(e){}
 $('bkShare').onclick = async () => {
   if (!clips.size) return status($('bkStatus'), 'Todavía no hay sílabas que guardar.', 'err');
