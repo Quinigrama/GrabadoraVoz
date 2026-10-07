@@ -120,6 +120,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
 @media (prefers-reduced-motion: reduce){.recdot{animation:none}.ov-word,.ov-line .w{transition:none}}
 .check{display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px}
 .check input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.backup{display:grid;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
 .hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 </style>
 </head>
@@ -234,11 +235,23 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <div class="row" id="clearBox"></div>
     </div>
     <div class="bank" id="bank"></div>
+    <div class="backup">
+      <div class="label">Copia de seguridad</div>
+      <p class="note">Tus sílabas se guardan solo en este navegador, y cada aparato tiene su propio banco. Descarga una copia para guardarla donde quieras o pasarla al móvil, la tablet o el ordenador. Dentro del .zip, cada sílaba es un archivo .wav que puedes escuchar.</p>
+      <div class="row">
+        <button class="primary" id="bkDown">⇩ Descargar copia</button>
+        <button id="bkShare" hidden>↗ Enviar a…</button>
+        <label class="btn" for="bkIn">⇪ Importar copia o audios</label>
+        <input type="file" id="bkIn" accept=".zip,application/zip,audio/*" multiple class="hidden-input">
+      </div>
+      <label class="check" for="bkReplace"><input type="checkbox" id="bkReplace"> Al importar, sustituir las sílabas que ya tengo</label>
+      <div class="status" id="bkStatus"></div>
+    </div>
     <details>
       <summary>Cómo funciona</summary>
       <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
       <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
-      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador.</p>
+      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
     </details>
   </section>
 </div>
@@ -357,7 +370,87 @@ function store(op, k, v){
     if (op === 'put') s.put(v, k); else if (op === 'del') s.delete(k); else s.clear();
   } catch(e){}
 }
-function saveSyl(k, data, sr){ const v = { sr, data }; clips.set(k, v); store('put', k, v); }
+function saveSyl(k, data, sr){ const v = { sr, data }; clips.set(k, v); store('put', k, v); askPersist(); }
+let persistAsked = false;
+function askPersist(){
+  if (persistAsked) return; persistAsked = true;
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
+}
+
+/* ---------- Copia de seguridad: WAV + ZIP ---------- */
+function wavBytes(data, sr){
+  const n = data.length, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++){ const x = Math.max(-1, Math.min(1, data[i])); v.setInt16(44 + i * 2, x < 0 ? x * 32768 : x * 32767, true); }
+  return new Uint8Array(b);
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++){ let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+function crc32(u){ let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files){
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  const d = new Date(), dt = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)), dd = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate());
+  for (const f of files){
+    const name = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, dt, true); h.setUint16(12, dd, true); h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true);
+    h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    parts.push(new Uint8Array(h.buffer), name, f.data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, dt, true); c.setUint16(14, dd, true); c.setUint32(16, crc, true); c.setUint32(20, size, true); c.setUint32(24, size, true);
+    c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + size;
+  }
+  const cdSize = central.reduce((t, p) => t + p.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+async function readZip(buf){
+  const u = new Uint8Array(buf), v = new DataView(buf);
+  let e = -1;
+  for (let i = u.length - 22; i >= Math.max(0, u.length - 66000); i--) if (v.getUint32(i, true) === 0x06054b50){ e = i; break; }
+  if (e < 0) throw new Error('nozip');
+  const count = v.getUint16(e + 10, true);
+  let p = v.getUint32(e + 16, true);
+  const out = [];
+  for (let k = 0; k < count; k++){
+    if (v.getUint32(p, true) !== 0x02014b50) break;
+    const flags = v.getUint16(p + 8, true), method = v.getUint16(p + 10, true), csize = v.getUint32(p + 20, true);
+    const nlen = v.getUint16(p + 28, true), xlen = v.getUint16(p + 30, true), clen = v.getUint16(p + 32, true), loc = v.getUint32(p + 42, true);
+    const nameBytes = u.subarray(p + 46, p + 46 + nlen);
+    const name = new TextDecoder(flags & 0x0800 ? 'utf-8' : 'utf-8').decode(nameBytes);
+    p += 46 + nlen + xlen + clen;
+    const start = loc + 30 + v.getUint16(loc + 26, true) + v.getUint16(loc + 28, true);
+    let data = u.slice(start, start + csize);
+    if (method === 8){
+      if (!window.DecompressionStream) continue;
+      data = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    } else if (method !== 0) continue;
+    if (!name.endsWith('/')) out.push({ name, data });
+  }
+  return out;
+}
+function keyFromName(name){
+  const base = name.split('/').pop().replace(/\.[^.]+$/, '').normalize('NFC').toLowerCase().trim();
+  return base.length <= 6 && /^(ch|rr|[bcdfgjklmnñprstyz])*[aeiou]+(ch|rr|[bcdfgjklmnñprstxyz])*$/.test(base) ? base : null;
+}
+function backupName(){
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return 'mi-voz-silabas-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.zip';
+}
+function buildBackup(){
+  const keys = [...clips.keys()].sort((a, b) => a.localeCompare(b, 'es'));
+  return makeZip(keys.map(k => { const c = clips.get(k); return { name: k + '.wav', data: wavBytes(c.data, c.sr) }; }));
+}
 
 /* ---------- Audio básico ---------- */
 let ctx = null;
@@ -1026,6 +1119,55 @@ $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
 $('txt').oninput = renderTape;
 document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt').value = b.dataset.ex; renderTape(); });
+
+/* ---------- Copia: botones ---------- */
+function fmtMB(b){ return fmt(b / 1048576, 1) + ' MB'; }
+$('bkDown').onclick = () => {
+  if (!clips.size) return status($('bkStatus'), 'Todavía no hay sílabas que guardar.', 'err');
+  const blob = buildBackup(), url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = backupName(); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  status($('bkStatus'), 'Copia de ' + clips.size + ' sílabas (' + fmtMB(blob.size) + '). Mira en tu carpeta de Descargas.', 'ok');
+};
+try { if (navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array(1)], 'a.zip', { type: 'application/zip' })] })) $('bkShare').hidden = false; } catch(e){}
+$('bkShare').onclick = async () => {
+  if (!clips.size) return status($('bkStatus'), 'Todavía no hay sílabas que guardar.', 'err');
+  const file = new File([buildBackup()], backupName(), { type: 'application/zip' });
+  try { await navigator.share({ files: [file], title: 'Mi voz en sílabas' }); status($('bkStatus'), 'Copia enviada.', 'ok'); }
+  catch(e){ if (e && e.name !== 'AbortError') status($('bkStatus'), 'No se pudo enviar. Prueba con «Descargar copia».', 'err'); }
+};
+$('bkIn').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  const replace = $('bkReplace').checked;
+  let added = 0, replaced = 0, kept = 0, bad = 0;
+  status($('bkStatus'), 'Importando…');
+  const put = async (name, blob, raw) => {
+    const k = keyFromName(name);
+    if (!k){ bad++; return; }
+    if (clips.has(k) && !replace){ kept++; return; }
+    try {
+      const m = await decodeMono(blob);
+      const d = raw ? m.data : trimClip(m.data, m.sr, 0.1);
+      if (!d || !d.length){ bad++; return; }
+      clips.has(k) ? replaced++ : added++;
+      saveSyl(k, d, m.sr);
+    } catch(err){ bad++; }
+  };
+  for (const f of files){
+    if (/\.zip$/i.test(f.name) || f.type === 'application/zip'){
+      try { for (const z of await readZip(await f.arrayBuffer())) await put(z.name, new Blob([z.data]), true); }
+      catch(err){ bad++; }
+    } else await put(f.name, f, false);
+  }
+  renderAll();
+  const parts = [];
+  if (added) parts.push(added + (added === 1 ? ' nueva' : ' nuevas'));
+  if (replaced) parts.push(replaced + (replaced === 1 ? ' sustituida' : ' sustituidas'));
+  if (kept) parts.push(kept + (kept === 1 ? ' ya la tenías' : ' ya las tenías'));
+  if (bad) parts.push(bad + (bad === 1 ? ' archivo no válido' : ' archivos no válidos'));
+  status($('bkStatus'), parts.length ? 'Importación terminada: ' + parts.join(', ') + '.' : 'No había nada que importar.', added || replaced ? 'ok' : (bad ? 'err' : ''));
+};
 
 window.addEventListener('resize', () => { drawWave($('wave'), lastWave); drawG(); });
 (async () => {
