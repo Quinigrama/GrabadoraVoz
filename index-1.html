@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sílabas con Mi Voz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: una columna tipo mesa de montaje — lectura arriba, debajo pestañas de grabación (guiada, suelta) y banco de cortes */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#1A2130; --muted:#5B6578; --line:#D3D9E3;
+  --accent:#0C7A85; --accent-soft:#D6EEF0; --rec:#D23638; --ok:#2C8A57; --wave:#0C7A85; --band:#E3ECF0;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#11151D; --surface:#1A202D; --ink:#E5E9F1; --muted:#97A1B5; --line:#2B3345;
+  --accent:#3DC3CB; --accent-soft:#183A40; --rec:#FF5B5D; --ok:#4CC38A; --wave:#3DC3CB; --band:#1D2B36; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#11151D; --surface:#1A202D; --ink:#E5E9F1; --muted:#97A1B5; --line:#2B3345;
+  --accent:#3DC3CB; --accent-soft:#183A40; --rec:#FF5B5D; --ok:#4CC38A; --wave:#3DC3CB; --band:#1D2B36; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:28px 56px;display:grid;gap:22px}
+header h1{font:800 clamp(28px,6vw,40px)/1.05 var(--display);margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px;min-width:0}
+.label{font:600 11px/1 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+textarea{width:100%;min-height:72px;resize:vertical;font:500 17px/1.4 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px}
+textarea:focus-visible,button:focus-visible,input:focus-visible,.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+button,.btn{font:600 14px/1 var(--body);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+button:hover:not(:disabled),.btn:hover{border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.recbtn{background:var(--rec);border-color:var(--rec);color:#fff}
+.recbtn.on{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion: reduce){.recbtn.on{animation:none}}
+.ghost{background:transparent}
+.small{padding:7px 12px;font-weight:500;font-size:13px}
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.sliders label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.sliders output{font:600 13px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--bg)}
+
+.tape{display:flex;flex-wrap:wrap;gap:12px 18px}
+.word{display:flex;align-items:center;gap:3px}
+.dash{color:var(--muted);font:500 13px var(--mono)}
+.chip{font:600 15px/1 var(--mono);padding:9px 11px;border-radius:7px;border:1.5px dashed var(--muted);color:var(--muted);background:transparent;cursor:pointer;min-width:40px;justify-content:center}
+.chip.has{border-style:solid;border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.chip.sel{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.chip.playing{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+.sw.a{border:1.5px solid var(--accent);background:var(--accent-soft)}
+.sw.b{border:1.5px dashed var(--muted)}
+
+.tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--surface);border:1px solid var(--line);width:max-content;max-width:100%;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:9px 14px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+
+.sentence{font:600 clamp(20px,4.6vw,26px)/1.45 var(--display);text-wrap:pretty;margin:0}
+.sentence .w{display:inline-block;margin-right:.32em}
+.sentence .w.got{color:var(--accent)}
+.sentence .w.bad{color:var(--rec)}
+.sylhint{font:500 13px var(--mono);color:var(--muted);line-height:1.6}
+.sylhint b{color:var(--accent);font-weight:600}
+.pill{font:600 12px/1 var(--body);padding:6px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-variant-numeric:tabular-nums}
+.pill.none{background:var(--bg);color:var(--muted)}
+.review{display:grid;gap:10px}
+.rword{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-block:8px;border-top:1px solid var(--line)}
+.rword:first-child{border-top:0}
+.rword .wbtn{font:600 14px var(--body);padding:7px 11px}
+.pick{display:inline-flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.pick button{border:0;border-radius:0;font:600 14px/1 var(--mono);padding:8px 10px;background:transparent}
+.pick label{display:flex;align-items:center;padding:0 8px;border-left:1px solid var(--line);align-self:stretch;cursor:pointer}
+.pick input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.pick.on{border-color:var(--accent);background:var(--accent-soft)}
+.pick small{font:500 11px var(--body);color:var(--muted);padding-right:8px}
+
+.studio{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+@media (max-width:520px){.studio{grid-template-columns:1fr}}
+.big{font:600 clamp(44px,12vw,64px)/1 var(--mono);min-width:3.2ch;text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.state{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.state b{color:var(--ink)}
+.meter{height:8px;border-radius:99px;background:var(--bg);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:var(--rec);transition:width .05s}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:62ch}
+.banner{border:1px solid var(--rec);border-radius:10px;padding:12px 14px;font-size:14px}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--rec)}
+.status.ok{color:var(--ok)}
+.bank{display:flex;flex-wrap:wrap;gap:8px}
+.bank .chip{font-size:13px;padding:7px 9px;min-width:0}
+.progress{height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent)}
+details summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
+.ov{position:fixed;inset:0;z-index:50;background:color-mix(in srgb, var(--bg) 95%, transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:grid;justify-items:center;align-content:center;gap:24px;padding-inline:16px;padding-block:calc(24px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));text-align:center;overflow-y:auto}
+.ov-top{display:flex;align-items:center;gap:10px}
+.recdot{width:10px;height:10px;border-radius:50%;background:var(--rec);animation:pulse 1s infinite}
+.ov-line{font:600 clamp(16px,3.6vw,22px)/1.6 var(--body);max-width:42ch;color:var(--muted);margin:0;text-wrap:balance}
+.ov-line.free{font:700 clamp(26px,6vw,46px)/1.35 var(--display);color:var(--ink);max-width:24ch}
+.ov-line .w{display:inline-block;margin-right:.3em;transition:color .15s}
+.ov-line .done{color:var(--ink);opacity:.4}
+.ov-line .cur{color:var(--accent);text-decoration:underline 3px;text-underline-offset:6px}
+.ov-word{font:800 clamp(52px,15vw,132px)/1.05 var(--display);letter-spacing:-.02em;color:var(--ink);min-height:1.1em;transition:opacity .12s, transform .12s}
+.ov-word.blank{opacity:0;transform:scale(.96)}
+.ov-word.count{color:var(--accent)}
+.ov-hint{margin:0;font-size:14px;color:var(--muted);min-height:1.4em}
+.ov .meter{width:min(320px,80vw)}
+@media (prefers-reduced-motion: reduce){.recdot{animation:none}.ov-word,.ov-line .w{transition:none}}
+.check{display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px}
+.check input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sílabas con Mi Voz</h1>
+    <p>Lee en voz alta unas frases, la app las trocea en sílabas y luego las empalma para leer cualquier texto con tu voz. Tu antiguo applet, versión 2.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="t-text">
+    <div class="label" id="t-text">Escribe lo que quieres oír</div>
+    <textarea id="txt" spellcheck="false">Hola mamá, ¿qué tal estás?</textarea>
+    <div class="row" aria-label="Frases de ejemplo">
+      <button class="small" data-ex="Hola mamá, ¿qué tal estás?">Hola mamá</button>
+      <button class="small" data-ex="Buenos días a todos.">Buenos días</button>
+      <button class="small" data-ex="La casa es muy bonita.">La casa</button>
+      <button class="small" data-ex="Quiero un café con leche, por favor.">Un café</button>
+    </div>
+    <div class="sliders">
+      <label for="xf">Fundido entre sílabas <output id="xfo">35 ms</output>
+        <input type="range" id="xf" min="0" max="80" value="35"></label>
+      <label for="rate">Ritmo dentro de la palabra <output id="rateo">80 %</output>
+        <input type="range" id="rate" min="55" max="100" value="80" step="5"></label>
+      <label for="gap">Pausa entre palabras <output id="gapo">110 ms</output>
+        <input type="range" id="gap" min="0" max="500" value="110" step="10"></label>
+    </div>
+    <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
+    <div class="row">
+      <button class="primary" id="play">▶ Leer con mi voz</button>
+      <button class="ghost" id="stop" disabled>■ Parar</button>
+    </div>
+    <canvas id="wave" aria-label="Forma de onda de la frase montada"></canvas>
+    <div class="status" id="playStatus"></div>
+    <div class="tape" id="tape"></div>
+    <div class="legend"><span><i class="sw a"></i>Grabada</span><span><i class="sw b"></i>Falta (sonará un pitido)</span><span>Toca una sílaba para grabarla suelta</span></div>
+  </section>
+
+  <div class="banner" id="micBanner" hidden>No tengo acceso al micrófono en esta vista. Puedes grabar con la grabadora del móvil y usar «Subir audio», o abrir el archivo HTML en Chrome del ordenador para grabar aquí mismo.</div>
+
+  <div class="tabs" role="tablist" aria-label="Formas de grabar">
+    <button role="tab" id="tab-guided" aria-controls="p-guided" aria-selected="true">Lectura guiada</button>
+    <button role="tab" id="tab-single" aria-controls="p-single" aria-selected="false">Sílaba suelta</button>
+    <button role="tab" id="tab-bank" aria-controls="p-bank" aria-selected="false">Banco · <span id="count">0</span></button>
+  </div>
+
+  <!-- LECTURA GUIADA -->
+  <section class="panel" id="p-guided" role="tabpanel" aria-labelledby="tab-guided">
+    <div class="row between">
+      <div class="label">Frase <span id="gNum">1</span> de <span id="gTot">0</span></div>
+      <span class="pill" id="gNew"></span>
+    </div>
+    <p class="sentence" id="gSentence"></p>
+    <div class="sylhint" id="gSyl"></div>
+    <p class="note">Léela como si dictaras: <b>palabra a palabra, con una pausa corta entre cada una</b>, en tu tono normal. Sin prisa; la grabación se para sola a los 30 segundos o cuando pulses Parar.</p>
+    <label class="check" for="kOn"><input type="checkbox" id="kOn" checked> Modo karaoke: te enseño las palabras una a una, a tu ritmo</label>
+    <div class="sliders" id="kBox">
+      <label for="kSpeed">Velocidad del karaoke <output id="kSpeedo">1,0×</output>
+        <input type="range" id="kSpeed" min="0.6" max="1.6" step="0.1" value="1"></label>
+    </div>
+    <div class="row">
+      <button class="recbtn" id="gRec">● Grabar frase</button>
+      <label class="btn" for="gUp">⇪ Subir audio</label>
+      <input type="file" id="gUp" accept="audio/*" class="hidden-input">
+      <button class="ghost" id="gPrev">← Anterior</button>
+      <button class="ghost" id="gNext">Siguiente →</button>
+      <button class="ghost" id="gBest">La que más aporta</button>
+    </div>
+    <div class="meter" aria-hidden="true"><i id="gLvl"></i></div>
+    <canvas id="gWave" aria-label="Grabación troceada en palabras y sílabas"></canvas>
+    <div class="status" id="gStatus">Graba o sube la lectura de esta frase.</div>
+    <div id="gReviewBox" hidden>
+      <div class="label" style="margin-bottom:8px">Revisa los cortes</div>
+      <p class="note" style="margin-bottom:10px">Toca una sílaba para oírla. Las marcadas se guardarán en tu banco; las que ya tenías vienen sin marcar por si quieres reemplazarlas.</p>
+      <div class="review" id="gReview"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="gSave">Guardar</button>
+        <button class="ghost" id="gDiscard">Descartar</button>
+      </div>
+    </div>
+    <div style="display:grid;gap:8px">
+      <div class="row between"><span class="label">Cobertura del texto de grabación</span><span class="state" id="covTxt"></span></div>
+      <div class="progress"><i id="covBar" style="width:0"></i></div>
+    </div>
+  </section>
+
+  <!-- SÍLABA SUELTA -->
+  <section class="panel" id="p-single" role="tabpanel" aria-labelledby="tab-single" hidden>
+    <div class="studio">
+      <div class="big" id="big">—</div>
+      <div style="display:grid;gap:12px;min-width:0">
+        <div class="state" id="state">Elige una sílaba en la frase de arriba.</div>
+        <div class="row">
+          <button class="recbtn" id="rec" disabled>● Grabar</button>
+          <button id="listen" disabled>▶ Escuchar</button>
+          <label class="btn" id="upLabel" for="up">⇪ Subir audio</label>
+          <input type="file" id="up" accept="audio/*" class="hidden-input">
+          <button class="ghost" id="del" disabled>Borrar</button>
+        </div>
+        <div class="meter" aria-hidden="true"><i id="lvl"></i></div>
+        <div class="row"><button class="ghost" id="next">Siguiente que falta →</button></div>
+      </div>
+    </div>
+    <p class="note">Útil para rellenar huecos o repetir una sílaba que salió mal. Dila seca y natural, sin alargarla. Se para sola a los 2 segundos y el silencio sobrante se recorta.</p>
+    <div class="status" id="recStatus"></div>
+  </section>
+
+  <!-- BANCO -->
+  <section class="panel" id="p-bank" role="tabpanel" aria-labelledby="tab-bank" hidden>
+    <div class="row between">
+      <div class="label">Tus sílabas grabadas</div>
+      <div class="row" id="clearBox"></div>
+    </div>
+    <div class="bank" id="bank"></div>
+    <details>
+      <summary>Cómo funciona</summary>
+      <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
+      <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
+      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador.</p>
+    </details>
+  </section>
+</div>
+
+<div class="ov" id="ov" hidden role="dialog" aria-modal="true" aria-label="Grabando frase">
+  <div class="ov-top"><span class="recdot" aria-hidden="true"></span><span class="label" id="ovLabel">Grabando</span></div>
+  <p class="ov-line" id="ovLine"></p>
+  <div class="ov-word" id="ovWord" aria-live="assertive"></div>
+  <p class="ov-hint" id="ovHint"></p>
+  <div class="meter" aria-hidden="true"><i id="ovLvl"></i></div>
+  <button class="recbtn" id="ovStop">■ Parar</button>
+</div>
+
+<script>
+(() => {
+const FRASES = ["El vecino toca la trompeta los fines de semana.", "Ya es hora de que arreglen el tejado del colegio.", "El zorro astuto engañó al cuervo con su voz dulce.", "Hubo un apagón y nos quedamos a oscuras.", "El granjero ordeña las vacas antes del amanecer.", "La exposición de pintura atrajo a miles de visitantes.", "El cielo se puso gris y empezó a llover con mucha fuerza.", "El examen de inglés fue más difícil de lo previsto.", "La guitarra suena mejor si cambias las cuerdas viejas.", "El volcán entró en erupción después de cien años.", "Juan y Lucía se casaron en una iglesia muy antigua.", "El náufrago sobrevivió tres semanas en una isla desierta.", "Ese huerto produce lechugas, pimientos y calabacines.", "El guardia de seguridad vigila la entrada del banco.", "El bebé se ríe cuando le hacen cosquillas.", "Cierra bien la ventana porque hace mucho frío.", "La niña juega con su muñeca en el jardín de la abuela.", "El queso manchego es famoso en todo el mundo.", "El sastre arregló el dobladillo del pantalón.", "El bosque está lleno de setas después de la lluvia.", "El juez dictó sentencia después de un largo juicio.", "El ratón se escondió detrás del armario.", "El sábado fuimos de excursión a la sierra de Gredos.", "Escribí un mensaje a mi madre para felicitarla.", "Hay que fregar los platos y barrer la cocina.", "El escultor talló una figura en mármol blanco.", "El hielo crujía bajo nuestros pies en el estanque.", "El científico observó las bacterias con el microscopio.", "Hicimos un muñeco de nieve con bufanda y gorro.", "Mañana temprano iremos a comprar pan y leche al mercado.", "El chófer aparcó la furgoneta delante del hotel.", "Tengo que renovar el carné de conducir este año.", "Se me olvidó el paraguas en el autobús.", "Los guiris disfrutan del sol en la costa.", "La miel de romero tiene un sabor muy suave.", "El trigo dorado se mueve con la brisa de la tarde.", "La gente aplaudió con entusiasmo al final del concierto.", "Un enjambre de abejas zumbaba junto a la colmena.", "Ojalá que el viernes haga buen tiempo para la feria.", "La orquesta afinó los instrumentos antes de empezar.", "Los domingos visitamos a los abuelos en el pueblo.", "El ruido de los coches no me deja dormir por la noche.", "La cruz roja atiende a los heridos del accidente.", "El piloto aterrizó el avión sin ningún problema.", "El público gritó de alegría con el último gol.", "Las flores del balcón necesitan agua cada dos días.", "Hoy toca limpiar el garaje y ordenar las herramientas.", "Juego al ajedrez con mi primo todos los jueves.", "Su gran sueño es viajar a Japón y a Australia.", "Las ovejas pastan tranquilas en la ladera del monte.", "La clase de baile empieza a las ocho y cuarto.", "El tren llega a la estación con diez minutos de retraso.", "El fuego de la chimenea calienta toda la casa.", "Hace falta harina, azúcar y huevos para el bizcocho.", "El atleta saltó más de ocho metros en longitud.", "El pianista ensayó la sonata durante horas.", "El alcalde inauguró el nuevo puente sobre el río.", "El perro de mi vecino ladra cada noche junto a la puerta.", "Me gusta pasear por la playa cuando sopla el viento del norte.", "La boda se celebró en un jardín lleno de luces.", "Brindamos con champán por el éxito del proyecto.", "El granizo rompió los cristales del invernadero.", "La bruja del cuento vivía en una choza del bosque.", "Necesito cambiar la rueda pinchada de la bicicleta.", "Los ingredientes del gazpacho son tomate, pepino y ajo.", "El fontanero cambió el grifo de la bañera.", "La cebra y la jirafa beben agua en la charca.", "Los bomberos apagaron el incendio en pocos minutos.", "Prueba este flan casero con caramelo.", "El crucero zarpó rumbo a las islas griegas.", "El jefe llegó tarde a la reunión de los lunes.", "El reloj de la plaza marca las doce en punto.", "El ciclista ganó la etapa con un sprint final.", "El submarino se sumergió a gran profundidad.", "El gato negro duerme tranquilo encima del sofá.", "La cigüeña construyó su nido en el campanario.", "El clima de esta región es seco y caluroso.", "Compré una chaqueta azul y unos guantes de lana.", "La señora del quinto piso tiene tres perros pequeños.", "La profesora explica la lección con mucha paciencia.", "La grúa levantó el contenedor con mucho cuidado.", "La nieve cubrió los tejados durante la madrugada.", "El pingüino nada rápido bajo el hielo del polo sur.", "El cocinero prepara una paella para veinte personas.", "Ayer vi una película muy divertida en el cine del barrio.", "Guarda las llaves en el cajón de la mesa.", "El oso pardo pesca salmones en el río.", "Los niños hacen cola para subir a la noria.", "Una ardilla trepó por el tronco del castaño.", "El buey y la mula descansaban en el establo.", "Me duele la muela desde hace una semana.", "El cántaro de barro mantiene fresca el agua.", "Él siempre lleva una libreta en el bolsillo.", "Busco un piso céntrico con terraza y ascensor.", "El yogur de fresa es el que más le gusta a Pablo.", "Cada otoño las hojas cubren el suelo del parque.", "La empresa busca un ingeniero con experiencia.", "El fútbol es el deporte favorito de mi sobrino.", "El tigre acecha a su presa entre la hierba alta.", "Ese chico tiene un perrito blanco muy simpático.", "Mi tía hace unas croquetas de jamón buenísimas.", "Los exploradores cruzaron el desierto en camello.", "Hay un atasco enorme en la salida de la ciudad.", "El vaquero lanzó el lazo y atrapó al ternero.", "La plancha está demasiado caliente para la seda.", "Quiero un café con leche y una tostada con tomate.", "La biblioteca abre a las nueve y cierra a las ocho.", "El pez dorado nada en círculos dentro de la pecera.", "El ordenador se quedó colgado en mitad del trabajo.", "El cliente pidió la cuenta y dejó una buena propina.", "El dragón de la leyenda guardaba un tesoro de oro.", "El fantasma del castillo asustaba a los visitantes.", "Prefiero el agua fría en verano y el té en invierno.", "El mecánico revisó el freno y el embrague del coche.", "La abuela teje una manta de ganchillo para el nieto.", "Mi hermano trabaja en una fábrica de zapatos en Elche.", "El tráfico en la autopista era muy denso esta mañana."];
+const $ = id => document.getElementById(id);
+const fmt = (n, d=2) => n.toFixed(d).replace('.', ',');
+function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
+
+/* ---------- Fonética y silabeo ---------- */
+const VOW = 'aeiouíú', STRONG = 'aeoíú';
+function phon(w){
+  const u = [];
+  for (let i = 0; i < w.length; i++){
+    const c = w[i], n = w[i+1] || '', n2 = w[i+2] || '';
+    const front = n !== '' && 'eéií'.includes(n);
+    switch (c){
+      case 'á': u.push('a'); break;
+      case 'é': u.push('e'); break;
+      case 'ó': u.push('o'); break;
+      case 'ü': u.push('u'); break;
+      case 'c': if (n === 'h'){ u.push('ĉ'); i++; } else u.push(front ? 'z' : 'k'); break;
+      case 'q': u.push('k'); if (n === 'u') i++; break;
+      case 'g': if (n === 'u' && n2 !== '' && 'eéií'.includes(n2)){ u.push('g'); i++; } else u.push(front ? 'j' : 'g'); break;
+      case 'h': break;
+      case 'l': if (n === 'l'){ u.push('y'); i++; } else u.push('l'); break;
+      case 'r': if (n === 'r'){ u.push('ř'); i++; } else u.push(i === 0 ? 'ř' : 'r'); break;
+      case 'v': u.push('b'); break;
+      case 'w': u.push('u'); break;
+      case 'x': u.push('k', 's'); break;
+      case 'y': u.push(n !== '' && 'aeiouáéíóú'.includes(n) ? 'y' : 'i'); break;
+      default: if ('abdefijkmnñoprstuzíú'.includes(c)) u.push(c);
+    }
+  }
+  return u;
+}
+const insep = (a, b) => 'bkdfgpt'.includes(a) && 'lr'.includes(b);
+function syllabify(u){
+  const isV = x => VOW.includes(x);
+  const nuc = [];
+  let i = 0;
+  while (i < u.length){
+    if (isV(u[i])){
+      let j = i;
+      while (j + 1 < u.length && isV(u[j+1]) && !(STRONG.includes(u[j]) && STRONG.includes(u[j+1]))) j++;
+      nuc.push([i, j]); i = j + 1;
+    } else i++;
+  }
+  if (!nuc.length) return [];
+  const starts = [0];
+  for (let k = 1; k < nuc.length; k++){
+    const a = nuc[k-1][1] + 1, b = nuc[k][0], n = b - a;
+    let take = 0;
+    if (n === 1) take = 1;
+    else if (n === 2) take = insep(u[a], u[a+1]) ? 2 : 1;
+    else if (n === 3) take = insep(u[a+1], u[a+2]) ? 2 : 1;
+    else if (n >= 4) take = 2;
+    starts.push(b - take);
+  }
+  const map = {'í':'i','ú':'u','ĉ':'ch','ř':'rr'};
+  return starts.map((s, k) => u.slice(s, starts[k+1] ?? u.length).map(x => map[x] || x).join(''));
+}
+function parseText(t){
+  const out = [];
+  for (const tok of t.split(/\s+/)){
+    const parts = tok.match(/[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+/g);
+    if (parts) for (const p of parts){
+      const syl = syllabify(phon(p.toLowerCase()));
+      if (syl.length) out.push({ word: p, syl, punct: false });
+    }
+    if (/[.,;:!?…]/.test(tok) && out.length) out[out.length-1].punct = true;
+  }
+  return out;
+}
+const FR = FRASES.map(f => parseText(f));
+const ALL_SYL = new Set(FR.flat().flatMap(w => w.syl));
+
+/* ---------- Almacenamiento ---------- */
+const clips = new Map();
+let idb = null;
+function openDB(){
+  return new Promise(res => {
+    try {
+      const r = indexedDB.open('silabas-con-mi-voz', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('clips');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => res(null);
+    } catch(e){ res(null); }
+  });
+}
+function loadAll(){
+  return new Promise(res => {
+    if (!idb) return res();
+    try {
+      const req = idb.transaction('clips', 'readonly').objectStore('clips').openCursor();
+      req.onsuccess = () => { const c = req.result; if (c){ if (typeof c.key === 'string') clips.set(c.key, c.value); c.continue(); } else res(); };
+      req.onerror = () => res();
+    } catch(e){ res(); }
+  });
+}
+function store(op, k, v){
+  try {
+    if (!idb) return;
+    const s = idb.transaction('clips', 'readwrite').objectStore('clips');
+    if (op === 'put') s.put(v, k); else if (op === 'del') s.delete(k); else s.clear();
+  } catch(e){}
+}
+function saveSyl(k, data, sr){ const v = { sr, data }; clips.set(k, v); store('put', k, v); }
+
+/* ---------- Audio básico ---------- */
+let ctx = null;
+function ac(){
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+function resample(d, from, to){
+  if (from === to) return d;
+  const len = Math.round(d.length * to / from), o = new Float32Array(len), r = from / to;
+  for (let i = 0; i < len; i++){
+    const x = i * r, i0 = Math.floor(x), f = x - i0;
+    o[i] = (d[i0] || 0) * (1 - f) + (d[i0+1] || 0) * f;
+  }
+  return o;
+}
+function frameRms(d, fr){
+  const out = [];
+  for (let i = 0; i < d.length; i += fr){
+    let s = 0; const e = Math.min(d.length, i + fr);
+    for (let j = i; j < e; j++) s += d[j] * d[j];
+    out.push(Math.sqrt(s / Math.max(1, e - i)));
+  }
+  return out;
+}
+function finish(o, sr){
+  let peak = 0; for (const v of o) peak = Math.max(peak, Math.abs(v));
+  const g = peak > 0 ? 0.85 / peak : 1;
+  const fi = Math.floor(sr * 0.004), fo = Math.floor(sr * 0.012);
+  for (let i = 0; i < o.length; i++){
+    let k = g;
+    if (i < fi) k *= i / fi;
+    if (i > o.length - fo) k *= Math.max(0, (o.length - i) / fo);
+    o[i] *= k;
+  }
+  return o;
+}
+function trimClip(d, sr, rel){
+  const fr = Math.max(1, Math.floor(sr * 0.01)), rms = frameRms(d, fr);
+  const max = Math.max(...rms);
+  if (max < 0.004) return null;
+  const thr = Math.max(max * rel, 0.002);
+  const first = rms.findIndex(r => r > thr);
+  let last = rms.length - 1; while (last > 0 && rms[last] <= thr) last--;
+  const s = Math.max(0, first * fr - Math.floor(sr * 0.01));
+  const e = Math.min(d.length, (last + 1) * fr + Math.floor(sr * 0.03));
+  return finish(d.slice(s, e), sr);
+}
+function beep(sr){
+  const n = Math.floor(sr * 0.14), o = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    const env = Math.min(1, i / (sr*0.01), (n - i) / (sr*0.02));
+    o[i] = Math.sin(2 * Math.PI * 660 * i / sr) * 0.12 * env;
+  }
+  return o;
+}
+function clipData(key){
+  const c = clips.get(key);
+  return c ? resample(c.data, c.sr, ac().sampleRate) : null;
+}
+let src = null;
+function playData(d, onEnd){
+  const a = ac();
+  if (src){ try { src.onended = null; src.stop(); } catch(e){} }
+  const b = a.createBuffer(1, Math.max(1, d.length), a.sampleRate);
+  b.copyToChannel(d, 0);
+  src = a.createBufferSource(); src.buffer = b; src.connect(a.destination);
+  src.onended = () => { src = null; onEnd && onEnd(); };
+  src.start();
+  return a.currentTime;
+}
+function stopAll(){ if (src){ try { src.stop(); } catch(e){} } }
+async function decodeMono(blob){
+  const buf = await ac().decodeAudioData(await blob.arrayBuffer());
+  const ch = buf.numberOfChannels, n = buf.length, mono = new Float32Array(n);
+  for (let c = 0; c < ch; c++){ const d = buf.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ch; }
+  return { data: mono, sr: buf.sampleRate };
+}
+
+/* ---------- Grabadora genérica ---------- */
+function micBlocked(){
+  const m = 'No puedo usar el micrófono aquí. Dentro de la app de Claude está bloqueado: abre la página en Chrome o usa «Subir audio».';
+  $('micBanner').hidden = false;
+  status($('gStatus'), m, 'err'); status($('recStatus'), m, 'err');
+  $('micBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+let rec = null;
+async function record({ maxMs, lvl, btn, idleText, onBlob, onStart, onLevel, onFail }){
+  const a = ac();
+  let stream;
+  try {
+    if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error('nomic');
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch(e){ micBlocked(); onFail && onFail(); return; }
+  const mr = new MediaRecorder(stream), chunks = [];
+  const an = a.createAnalyser(); an.fftSize = 512;
+  a.createMediaStreamSource(stream).connect(an);
+  const buf = new Float32Array(an.fftSize), t0 = performance.now();
+  rec = { mr };
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+  mr.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    cancelAnimationFrame(rec && rec.raf); lvl.style.width = '0';
+    rec = null; btn.classList.remove('on'); btn.textContent = idleText;
+    onBlob(new Blob(chunks, { type: mr.mimeType }));
+  };
+  mr.onstart = () => onStart && onStart(performance.now());
+  mr.start();
+  btn.classList.add('on'); btn.textContent = '■ Parar';
+  const loop = () => {
+    if (!rec) return;
+    an.getFloatTimeDomainData(buf);
+    let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v));
+    lvl.style.width = Math.min(100, pk * 140) + '%';
+    onLevel && onLevel(pk);
+    if (performance.now() - t0 > maxMs){ stopRec(); return; }
+    rec.raf = requestAnimationFrame(loop);
+  };
+  rec.raf = requestAnimationFrame(loop);
+}
+function stopRec(){ if (rec && rec.mr.state !== 'inactive') rec.mr.stop(); }
+
+/* ---------- Troceado automático ---------- */
+function segmentWords(d, sr, nWords){
+  const hop = Math.floor(sr * 0.01), rms = frameRms(d, hop);
+  const sorted = [...rms].sort((a, b) => a - b);
+  const noise = sorted[Math.floor(sorted.length * 0.1)] || 0, max = sorted[sorted.length - 1] || 0;
+  if (max < 0.004) return { segs: [], ok: false };
+  const thr = Math.max(noise * 3, max * 0.05, 0.002);
+  const voiced = rms.map(r => r > thr);
+  const runs = [];
+  let s = -1;
+  voiced.forEach((v, i) => { if (v && s < 0) s = i; if (!v && s >= 0){ runs.push([s, i]); s = -1; } });
+  if (s >= 0) runs.push([s, voiced.length]);
+  const build = gap => {
+    const m = [];
+    for (const r of runs){
+      if (m.length && r[0] - m[m.length-1][1] < gap) m[m.length-1][1] = r[1];
+      else m.push([r[0], r[1]]);
+    }
+    return m.filter(r => r[1] - r[0] >= 6);
+  };
+  const valid = [];
+  let best = null, bestDiff = 1e9;
+  for (let g = 6; g <= 70; g += 2){
+    const m = build(g), diff = Math.abs(m.length - nWords);
+    if (diff === 0) valid.push(m);
+    if (diff < bestDiff){ bestDiff = diff; best = m; }
+  }
+  const chosen = valid.length ? valid[Math.floor(valid.length / 2)] : best;
+  const segs = chosen.map(([a, b], i) => {
+    const prevEnd = i ? chosen[i-1][1] * hop : 0;
+    const nextStart = i < chosen.length - 1 ? chosen[i+1][0] * hop : d.length;
+    const st = Math.max(prevEnd, a * hop - Math.floor(sr * 0.03));
+    const en = Math.min(nextStart, b * hop + Math.floor(sr * 0.05));
+    return [st, en];
+  });
+  return { segs, ok: valid.length > 0, found: chosen.length };
+}
+function splitSyllables(d, sr, k){
+  if (k <= 1) return [[0, d.length]];
+  const hop = Math.max(1, Math.floor(sr * 0.005));
+  const raw = frameRms(d, hop);
+  const env = raw.map((_, i) => { let s = 0, n = 0; for (let j = i - 2; j <= i + 2; j++) if (j >= 0 && j < raw.length){ s += raw[j]; n++; } return s / n; });
+  const mx = Math.max(...env);
+  const peaks = [];
+  for (let i = 1; i < env.length - 1; i++) if (env[i] >= env[i-1] && env[i] > env[i+1] && env[i] > mx * 0.15) peaks.push(i);
+  peaks.sort((a, b) => env[b] - env[a]);
+  const take = [];
+  const minDist = Math.floor(0.07 / 0.005);
+  for (const p of peaks){ if (take.every(t => Math.abs(t - p) >= minDist)) take.push(p); if (take.length === k) break; }
+  if (take.length < k){
+    const step = d.length / k;
+    return Array.from({ length: k }, (_, i) => [Math.floor(i * step), Math.floor((i + 1) * step)]);
+  }
+  take.sort((a, b) => a - b);
+  const cuts = [0];
+  for (let i = 0; i < k - 1; i++){
+    let m = take[i];
+    for (let j = take[i]; j <= take[i+1]; j++) if (env[j] < env[m]) m = j;
+    cuts.push(m * hop);
+  }
+  cuts.push(d.length);
+  return cuts.slice(0, -1).map((c, i) => [c, cuts[i+1]]);
+}
+
+function segmentByTiming(d, sr, times, n){
+  const hop = Math.floor(sr * 0.01), rms = frameRms(d, hop);
+  const sorted = [...rms].sort((a, b) => a - b);
+  const noise = sorted[Math.floor(sorted.length * 0.1)] || 0, max = sorted[sorted.length - 1] || 0;
+  if (max < 0.004) return null;
+  const thr = Math.max(noise * 3, max * 0.05, 0.002);
+  const frames = [];
+  let floor = 0;
+  for (let i = 0; i < n; i++){
+    const a = Math.max(floor, Math.floor((times[i] + 0.12) * 100));
+    const b = Math.min(rms.length, Math.floor(((i + 1 < n ? times[i+1] : rms.length / 100) + 0.25) * 100));
+    let runs = [], s = -1;
+    for (let f = a; f < b; f++){
+      const v = rms[f] > thr;
+      if (v && s < 0) s = f;
+      if (!v && s >= 0){ runs.push([s, f]); s = -1; }
+    }
+    if (s >= 0) runs.push([s, b]);
+    const m = [];
+    for (const r of runs){ if (m.length && r[0] - m[m.length-1][1] < 12) m[m.length-1][1] = r[1]; else m.push(r); }
+    if (!m.length) return null;
+    let best = m[0], be = -1;
+    for (const r of m){ let e = 0; for (let f = r[0]; f < r[1]; f++) e += rms[f]; if (e > be){ be = e; best = r; } }
+    frames.push(best); floor = best[1];
+  }
+  return frames.map(([a, b], i) => {
+    const prevEnd = i ? frames[i-1][1] * hop : 0;
+    const nextStart = i < n - 1 ? frames[i+1][0] * hop : d.length;
+    return [Math.max(prevEnd, a * hop - Math.floor(sr * 0.03)), Math.min(nextStart, b * hop + Math.floor(sr * 0.05))];
+  });
+}
+
+/* ---------- Dibujo de ondas ---------- */
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function drawWave(cv, d, opt = {}){
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w) return;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  if (d && d.length && opt.regions){
+    g.fillStyle = css('--band');
+    opt.regions.forEach(([a, b]) => g.fillRect(a / d.length * w, 0, (b - a) / d.length * w, h));
+  }
+  g.fillStyle = css('--line'); g.fillRect(0, h/2, w, 1);
+  if (!d || !d.length) return;
+  const step = d.length / w;
+  g.fillStyle = css('--wave');
+  for (let x = 0; x < w; x++){
+    let mn = 0, mx = 0;
+    const s = Math.floor(x * step), e = Math.min(d.length, Math.floor((x + 1) * step));
+    for (let i = s; i < e; i++){ if (d[i] < mn) mn = d[i]; if (d[i] > mx) mx = d[i]; }
+    g.fillRect(x, h/2 - mx * h * 0.45, 1, Math.max(1, (mx - mn) * h * 0.45));
+  }
+  if (opt.lines){ g.fillStyle = css('--rec'); opt.lines.forEach(p => g.fillRect(p / d.length * w, 6, 1.5, h - 12)); }
+  if (opt.head != null){ g.fillStyle = css('--ink'); g.fillRect(opt.head * w, 0, 2, h); }
+}
+
+/* ---------- Lectura de la frase ---------- */
+let words = [], lastWave = null, raf = 0;
+/* Pulido de uniones */
+function env10(d, sr){ return frameRms(d, Math.max(1, Math.floor(sr * 0.01))); }
+function tightTrim(d, sr, head, tail){
+  const fr = Math.max(1, Math.floor(sr * 0.01)), e = frameRms(d, fr), mx = Math.max(...e);
+  if (!mx) return d;
+  let s = 0, t = e.length - 1;
+  if (head) while (s < t && e[s] < mx * head) s++;
+  if (tail) while (t > s && e[t] < mx * tail) t--;
+  const a = Math.max(0, s * fr - Math.floor(sr * 0.005)), b = Math.min(d.length, (t + 1) * fr + Math.floor(sr * 0.01));
+  return d.slice(a, b);
+}
+function levelMatch(d, sr){
+  const e = env10(d, sr), mx = Math.max(...e);
+  const loud = e.filter(v => v > mx * 0.3);
+  const rms = loud.length ? Math.sqrt(loud.reduce((t, v) => t + v * v, 0) / loud.length) : mx;
+  let g = rms ? 0.14 / rms : 1, pk = 0;
+  for (const v of d) pk = Math.max(pk, Math.abs(v));
+  if (pk * g > 0.95) g = 0.95 / pk;
+  const o = new Float32Array(d.length); for (let i = 0; i < d.length; i++) o[i] = d[i] * g;
+  return o;
+}
+function stretch(x, sr, rate){
+  const N = Math.floor(sr * 0.03), Hs = N >> 1, Ha = Hs / rate, tol = Math.floor(sr * 0.008);
+  if (rate > 0.98 || x.length < N * 3) return x;
+  const outLen = Math.ceil(x.length * rate) + N, out = new Float32Array(outLen), norm = new Float32Array(outLen);
+  const w = Float32Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
+  let prev = 0;
+  for (let k = 0; ; k++){
+    const target = Math.round(k * Ha);
+    if (target + tol + N >= x.length || k * Hs + N >= outLen) break;
+    let pos = target;
+    if (k){
+      const nat = prev + Hs; let best = -Infinity;
+      for (let dl = -tol; dl <= tol; dl += 2){
+        const c0 = target + dl; if (c0 < 0) continue;
+        let c = 0; for (let i = 0; i < N; i += 4) c += x[c0 + i] * x[nat + i];
+        if (c > best){ best = c; pos = c0; }
+      }
+    }
+    for (let i = 0; i < N; i++){ out[k * Hs + i] += x[pos + i] * w[i]; norm[k * Hs + i] += w[i]; }
+    prev = pos;
+  }
+  let end = outLen; while (end > 0 && norm[end - 1] < 1e-3) end--;
+  for (let i = 0; i < end; i++) if (norm[i] > 1e-3) out[i] /= norm[i];
+  return out.slice(0, end);
+}
+function prepare(key, sr, pos, n, rate, polish){
+  let d = clipData(key);
+  if (!d) return { d: beep(sr), miss: true };
+  if (!polish) return { d, miss: false };
+  const first = pos === 0, last = pos === n - 1;
+  d = tightTrim(d, sr, first ? 0.03 : 0.07, last ? 0.05 : 0.2);
+  d = levelMatch(d, sr);
+  d = stretch(d, sr, last ? Math.min(1, (rate + 1) / 2) : rate);
+  return { d: finish(d, sr), miss: false };
+}
+function build(ws){
+  const a = ac(), sr = a.sampleRate;
+  const polish = $('polish').checked;
+  const xfMs = +$('xf').value, gap = +$('gap').value, rate = $('rate').value / 100;
+  const xf = Math.floor(sr * xfMs / 1000), tolJ = Math.floor(sr * 0.01);
+  let total = sr * 0.5;
+  const plan = ws.map(w => {
+    const parts = w.syl.map((s, i) => prepare(s, sr, i, w.syl.length, rate, polish));
+    parts.forEach(p => total += p.d.length);
+    total += sr * (w.punct ? gap * 2.5 + 150 : gap) / 1000;
+    return { w, parts };
+  });
+  const out = new Float32Array(Math.ceil(total));
+  let pos = 0, prevLen = 0, prevClip = false, missing = 0, idx = 0;
+  const marks = [];
+  plan.forEach(({ w, parts }) => {
+    parts.forEach(({ d, miss }) => {
+      if (miss) missing++;
+      let ov = prevClip ? Math.min(xf, Math.floor(d.length / 3), Math.floor(prevLen / 3)) : 0;
+      let start = Math.max(0, pos - ov);
+      if (ov > 8 && polish){
+        let best = -Infinity, bs = start;
+        for (let dl = -tolJ; dl <= tolJ; dl += 2){
+          const st = pos - ov + dl;
+          if (st < 0 || st + ov > pos + tolJ) continue;
+          let c = 0; for (let i = 0; i < ov; i += 4) c += out[st + i] * d[i];
+          if (c > best){ best = c; bs = st; }
+        }
+        start = bs; ov = Math.max(0, Math.min(ov, pos - start));
+      }
+      for (let j = 0; j < d.length; j++){
+        if (j < ov){
+          const t = j / ov;
+          const fOut = polish ? Math.cos(t * Math.PI / 2) : 1 - t, fIn = polish ? Math.sin(t * Math.PI / 2) : t;
+          out[start + j] = out[start + j] * fOut + d[j] * fIn;
+        } else out[start + j] += d[j];
+      }
+      marks.push({ idx: idx++, t0: start / sr, t1: (start + d.length) / sr });
+      pos = Math.max(pos, start + d.length); prevLen = d.length; prevClip = true;
+    });
+    const g = w.punct ? gap * 2.5 + 150 : gap;
+    if (g > 0){ pos += Math.floor(sr * g / 1000); prevClip = false; }
+  });
+  return { data: out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05))), marks, missing };
+}
+
+/* ---------- Render general ---------- */
+let selected = null;
+function chip(key){
+  const b = document.createElement('button');
+  b.className = 'chip' + (clips.has(key) ? ' has' : '') + (key === selected ? ' sel' : '');
+  b.textContent = key;
+  return b;
+}
+function renderTape(){
+  words = parseText($('txt').value);
+  const tape = $('tape'); tape.innerHTML = '';
+  let idx = 0;
+  if (!words.length) tape.innerHTML = '<span class="note">Escribe alguna palabra para ver sus sílabas.</span>';
+  words.forEach(w => {
+    const g = document.createElement('div'); g.className = 'word';
+    w.syl.forEach((s, k) => {
+      if (k){ const d = document.createElement('span'); d.className = 'dash'; d.textContent = '·'; g.append(d); }
+      const b = chip(s); b.dataset.idx = idx++;
+      b.onclick = () => { selected = s; showTab('single'); renderAll(); };
+      g.append(b);
+    });
+    tape.append(g);
+  });
+}
+function renderBank(){
+  const keys = [...clips.keys()].sort((a, b) => a.localeCompare(b, 'es'));
+  $('count').textContent = keys.length;
+  const bank = $('bank'); bank.innerHTML = '';
+  if (!keys.length) bank.innerHTML = '<span class="note">Aún no hay sílabas grabadas. Empieza por la lectura guiada.</span>';
+  keys.forEach(k => { const b = chip(k); b.onclick = () => { selected = k; playData(clipData(k)); renderAll(); }; bank.append(b); });
+  const box = $('clearBox'); box.innerHTML = '';
+  if (keys.length) box.append(clearBtn());
+}
+function clearBtn(){
+  const c = document.createElement('button'); c.className = 'ghost small'; c.textContent = 'Borrar todas';
+  c.onclick = () => {
+    const box = $('clearBox'); box.innerHTML = '<span class="note">¿Borrar todas?</span>';
+    const yes = document.createElement('button'); yes.textContent = 'Sí, borrar'; yes.className = 'recbtn small';
+    const no = document.createElement('button'); no.textContent = 'Cancelar'; no.className = 'ghost small';
+    yes.onclick = () => { clips.clear(); store('clear'); renderAll(); };
+    no.onclick = () => renderBank();
+    box.append(yes, no);
+  };
+  return c;
+}
+function renderStudio(){
+  $('big').textContent = selected || '—';
+  const has = selected && clips.has(selected);
+  $('rec').disabled = !selected;
+  $('listen').disabled = !has; $('del').disabled = !has;
+  if (!selected) $('state').textContent = 'Elige una sílaba en la frase de arriba.';
+  else if (has){
+    const c = clips.get(selected);
+    $('state').innerHTML = '<b>Grabada</b> · ' + fmt(c.data.length / c.sr) + ' s. Puedes repetirla cuando quieras.';
+  } else $('state').innerHTML = '<b>Falta por grabar.</b> Pulsa Grabar y di «' + selected + '».';
+}
+function renderCoverage(){
+  let n = 0; ALL_SYL.forEach(k => clips.has(k) && n++);
+  $('covTxt').textContent = n + ' de ' + ALL_SYL.size + ' sílabas';
+  $('covBar').style.width = (100 * n / ALL_SYL.size) + '%';
+}
+function renderAll(){ renderTape(); renderBank(); renderStudio(); renderGuided(); renderCoverage(); }
+
+/* ---------- Pestañas ---------- */
+function showTab(name){
+  ['guided', 'single', 'bank'].forEach(t => {
+    $('tab-' + t).setAttribute('aria-selected', t === name);
+    $('p-' + t).hidden = t !== name;
+  });
+  if (name === 'guided') requestAnimationFrame(drawG);
+}
+['guided', 'single', 'bank'].forEach(t => $('tab-' + t).onclick = () => showTab(t));
+
+/* ---------- Lectura guiada ---------- */
+let gi = 0, gTake = null;
+function newCount(i){ return new Set(FR[i].flatMap(w => w.syl).filter(k => !clips.has(k))).size; }
+function renderGuided(){
+  $('gTot').textContent = FRASES.length; $('gNum').textContent = gi + 1;
+  const ws = FR[gi];
+  const sEl = $('gSentence'); sEl.innerHTML = '';
+  FRASES[gi].split(/\s+/).forEach((tok, i) => {
+    const sp = document.createElement('span'); sp.className = 'w'; sp.textContent = tok; sEl.append(sp);
+  });
+  if (gTake){
+    const spans = sEl.querySelectorAll('.w');
+    spans.forEach(sp => sp.classList.add(gTake.ok ? 'got' : 'bad'));
+  }
+  $('gSyl').innerHTML = ws.map(w => w.syl.map(s => clips.has(s) ? s : '<b>' + s + '</b>').join('·')).join('  ');
+  const n = newCount(gi);
+  $('gNew').textContent = n ? 'Aporta ' + n + ' sílaba' + (n > 1 ? 's' : '') + ' nueva' + (n > 1 ? 's' : '') : 'Ya la tienes completa';
+  $('gNew').className = 'pill' + (n ? '' : ' none');
+  $('gPrev').disabled = gi === 0; $('gNext').disabled = gi === FRASES.length - 1;
+}
+function drawG(){
+  if (!gTake) return drawWave($('gWave'), null);
+  const lines = [];
+  gTake.words.forEach(w => w.sylRanges.slice(1).forEach(r => lines.push(w.start + r[0])));
+  drawWave($('gWave'), gTake.data, { regions: gTake.words.map(w => [w.start, w.end]), lines });
+}
+function goTo(i){ gi = Math.max(0, Math.min(FRASES.length - 1, i)); gTake = null; $('gReviewBox').hidden = true; drawG(); status($('gStatus'), 'Graba o sube la lectura de esta frase.'); renderGuided(); }
+function bestSentence(){
+  let best = gi, bs = -1;
+  FR.forEach((_, i) => { const n = newCount(i); if (n > bs){ bs = n; best = i; } });
+  return bs > 0 ? best : -1;
+}
+$('gPrev').onclick = () => goTo(gi - 1);
+$('gNext').onclick = () => goTo(gi + 1);
+$('gBest').onclick = () => { const b = bestSentence(); if (b < 0) status($('gStatus'), '¡Ya tienes todas las sílabas del texto de grabación!', 'ok'); else goTo(b); };
+
+async function processTake(blob, times){
+  let m;
+  try { m = await decodeMono(blob); }
+  catch(e){ status($('gStatus'), 'No he podido leer ese audio. Prueba con un archivo .m4a, .mp3 o .wav.', 'err'); return; }
+  const sr = ac().sampleRate, data = resample(m.data, m.sr, sr);
+  const ws = FR[gi];
+  let { segs, ok, found } = segmentWords(data, sr, ws.length), viaTiming = false;
+  if (!ok && times && times.length === ws.length){
+    const t = segmentByTiming(data, sr, times, ws.length);
+    if (t){ segs = t; ok = true; viaTiming = true; }
+  }
+  if (!segs.length){ status($('gStatus'), 'No se oye nada en la grabación. Acércate un poco más al micro.', 'err'); return; }
+  if (!ok){
+    gTake = { data, ok: false, words: segs.map(([a, b]) => ({ start: a, end: b, sylRanges: [[0, b - a]] })) };
+    drawG(); renderGuided(); $('gReviewBox').hidden = true;
+    status($('gStatus'), 'He encontrado ' + found + ' trozos y la frase tiene ' + ws.length + ' palabras. Repite dejando una pausa algo más clara entre cada palabra.', 'err');
+    return;
+  }
+  gTake = { data, sr, ok: true, words: segs.map(([a, b], i) => {
+    const seg = data.subarray(a, b);
+    return { start: a, end: b, word: ws[i], sylRanges: splitSyllables(seg, sr, ws[i].syl.length) };
+  }) };
+  drawG(); renderGuided(); renderReview();
+  status($('gStatus'), 'He encontrado las ' + ws.length + ' palabras' + (viaTiming ? ' guiándome por el ritmo del karaoke' : '') + '. Revisa los cortes y guarda.', 'ok');
+}
+function sylAudio(w, j){
+  const [a, b] = w.sylRanges[j];
+  const d = gTake.data.slice(w.start + a, w.start + b);
+  const isEdge = j === 0 || j === w.sylRanges.length - 1;
+  return isEdge ? (trimClip(d, gTake.sr, 0.04) || finish(d, gTake.sr)) : finish(d, gTake.sr);
+}
+function renderReview(){
+  const box = $('gReview'); box.innerHTML = '';
+  const seen = new Set();
+  gTake.words.forEach(w => {
+    const row = document.createElement('div'); row.className = 'rword';
+    const wb = document.createElement('button'); wb.className = 'wbtn'; wb.textContent = '▶ ' + w.word.word;
+    wb.onclick = () => playData(finish(gTake.data.slice(w.start, w.end), gTake.sr));
+    row.append(wb);
+    w.picks = w.word.syl.map((s, j) => {
+      const exists = clips.has(s), dup = seen.has(s); seen.add(s);
+      const on = !exists && !dup;
+      const p = document.createElement('span'); p.className = 'pick' + (on ? ' on' : '');
+      const b = document.createElement('button'); b.textContent = s; b.onclick = () => playData(sylAudio(w, j));
+      const lab = document.createElement('label');
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = on; cb.id = 'pk-' + gi + '-' + s + '-' + j + '-' + w.start;
+      cb.setAttribute('aria-label', 'Guardar ' + s);
+      cb.onchange = () => { p.classList.toggle('on', cb.checked); updateSaveBtn(); };
+      lab.append(cb); p.append(b, lab);
+      if (exists){ const sm = document.createElement('small'); sm.textContent = 'ya la tienes'; p.append(sm); }
+      row.append(p);
+      return cb;
+    });
+    box.append(row);
+  });
+  $('gReviewBox').hidden = false;
+  updateSaveBtn();
+}
+function updateSaveBtn(){
+  const n = gTake ? gTake.words.reduce((t, w) => t + w.picks.filter(c => c.checked).length, 0) : 0;
+  $('gSave').textContent = 'Guardar ' + n + ' sílaba' + (n === 1 ? '' : 's');
+  $('gSave').disabled = !n;
+}
+$('gSave').onclick = () => {
+  let n = 0;
+  gTake.words.forEach(w => w.picks.forEach((cb, j) => { if (cb.checked){ saveSyl(w.word.syl[j], sylAudio(w, j), gTake.sr); n++; } }));
+  gTake = null; $('gReviewBox').hidden = true;
+  renderAll(); drawG();
+  const b = bestSentence();
+  status($('gStatus'), n + ' sílabas guardadas.' + (b >= 0 ? ' Te paso a la frase que más aporta ahora.' : ' ¡Texto completo!'), 'ok');
+  if (b >= 0){ gi = b; renderGuided(); }
+};
+$('gDiscard').onclick = () => { gTake = null; $('gReviewBox').hidden = true; drawG(); renderGuided(); status($('gStatus'), 'Toma descartada. Puedes volver a grabarla.'); };
+function dispWords(i){
+  const out = [];
+  FRASES[i].split(/\s+/).forEach(tok => {
+    const ws = parseText(tok);
+    if (ws.length === 1) out.push(tok); else ws.forEach(w => out.push(w.word));
+  });
+  return out;
+}
+let kara = null;
+function ovLine(words, cur, free){
+  const el = $('ovLine'); el.innerHTML = ''; el.className = 'ov-line' + (free ? ' free' : '');
+  words.forEach((w, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'w' + (free ? '' : i < cur ? ' done' : i === cur ? ' cur' : '');
+    sp.textContent = w; el.append(sp);
+  });
+}
+function closeOverlay(){
+  if (kara){ kara.timers.forEach(clearTimeout); kara = null; }
+  $('ov').hidden = true; $('ovLvl').style.width = '0';
+}
+function startGuided(){
+  const idx = gi, words = dispWords(idx), karaoke = $('kOn').checked && words.length === FR[idx].length;
+  const speed = +$('kSpeed').value;
+  kara = { timers: [], times: [], cancelled: false };
+  const k = kara;
+  $('ovLabel').textContent = 'Grabando · frase ' + (idx + 1);
+  $('ovWord').textContent = ''; $('ovWord').className = 'ov-word blank';
+  $('ovWord').hidden = !karaoke;
+  ovLine(words, -1, !karaoke);
+  $('ovHint').textContent = karaoke ? 'Prepárate…' : 'Lee palabra a palabra, con una pausa corta entre cada una. Pulsa Parar al terminar.';
+  $('ov').hidden = false;
+  $('ovStop').focus();
+  status($('gStatus'), 'Grabando…');
+  const at = (ms, fn) => k.timers.push(setTimeout(() => { if (kara === k) fn(); }, ms));
+  record({
+    maxMs: 60000, lvl: $('gLvl'), btn: $('gRec'), idleText: '● Grabar frase',
+    onLevel: pk => $('ovLvl').style.width = Math.min(100, pk * 140) + '%',
+    onFail: closeOverlay,
+    onStart: t0 => {
+      if (!karaoke) return;
+      const wEl = $('ovWord');
+      let t = 0;
+      ['3', '2', '1'].forEach(c => { at(t, () => { wEl.textContent = c; wEl.className = 'ov-word count'; $('ovHint').textContent = 'Prepárate…'; }); t += 650; });
+      at(t, () => { wEl.className = 'ov-word blank'; $('ovHint').textContent = ''; });
+      t += 300;
+      FR[idx].forEach((w, i) => {
+        const show = (280 + 170 * w.syl.length) / speed, gap = 600 / speed;
+        at(t, () => {
+          k.times[i] = (performance.now() - t0) / 1000;
+          wEl.textContent = words[i]; wEl.className = 'ov-word';
+          ovLine(words, i, false);
+          $('ovHint').textContent = 'Palabra ' + (i + 1) + ' de ' + words.length;
+        });
+        t += show;
+        at(t, () => { wEl.className = 'ov-word blank'; ovLine(words, i + 1, false); });
+        t += gap;
+      });
+      at(t + 400, () => { $('ovHint').textContent = '¡Hecho!'; stopRec(); });
+    },
+    onBlob: blob => {
+      const times = k.times.slice();
+      closeOverlay();
+      processTake(blob, times.length === FR[idx].length ? times : null);
+    }
+  });
+}
+$('gRec').onclick = () => { if (rec) return stopRec(); startGuided(); };
+$('ovStop').onclick = () => { if (rec) stopRec(); else closeOverlay(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ov').hidden) $('ovStop').click(); });
+function savePrefs(){ try { localStorage.setItem('scmv-kara', JSON.stringify({ on: $('kOn').checked, speed: $('kSpeed').value })); } catch(e){} }
+function kUI(){ $('kSpeedo').textContent = fmt(+$('kSpeed').value, 1) + '×'; $('kBox').hidden = !$('kOn').checked; }
+try { const p = JSON.parse(localStorage.getItem('scmv-kara') || 'null'); if (p){ $('kOn').checked = !!p.on; $('kSpeed').value = p.speed; } } catch(e){}
+$('kOn').onchange = () => { kUI(); savePrefs(); };
+$('kSpeed').oninput = () => { kUI(); savePrefs(); };
+kUI();
+$('gUp').onchange = e => { const f = e.target.files[0]; if (f) processTake(f); e.target.value = ''; };
+
+/* ---------- Sílaba suelta ---------- */
+async function ingestSingle(blob, key){
+  try {
+    const m = await decodeMono(blob);
+    const p = trimClip(m.data, m.sr, 0.1);
+    if (!p){ status($('recStatus'), 'No se oye nada en esa toma. Prueba a hablar un poco más cerca.', 'err'); return; }
+    saveSyl(key, p, m.sr);
+    status($('recStatus'), '«' + key + '» guardada (' + fmt(p.length / m.sr) + ' s).', 'ok');
+    renderAll(); playData(clipData(key));
+  } catch(e){ status($('recStatus'), 'No he podido leer ese audio. Prueba con un archivo .m4a, .mp3 o .wav.', 'err'); }
+}
+$('rec').onclick = () => {
+  if (rec) return stopRec();
+  const key = selected; if (!key) return;
+  status($('recStatus'), 'Grabando «' + key + '»…');
+  record({ maxMs: 2000, lvl: $('lvl'), btn: $('rec'), idleText: '● Grabar', onBlob: b => ingestSingle(b, key) });
+};
+$('listen').onclick = () => selected && clips.has(selected) && playData(clipData(selected));
+$('del').onclick = () => { if (!selected) return; clips.delete(selected); store('del', selected); renderAll(); };
+$('up').onchange = e => { const f = e.target.files[0]; if (f && selected) ingestSingle(f, selected); e.target.value = ''; };
+$('upLabel').addEventListener('click', e => { if (!selected){ e.preventDefault(); status($('recStatus'), 'Primero elige una sílaba.'); } });
+$('next').onclick = () => {
+  const all = words.flatMap(w => w.syl);
+  const start = selected ? all.indexOf(selected) : -1;
+  for (let i = 1; i <= all.length; i++){
+    const k = all[(start + i + all.length) % all.length];
+    if (!clips.has(k)){ selected = k; renderAll(); return; }
+  }
+  status($('recStatus'), '¡Ya tienes todas las sílabas de la frase de arriba!', 'ok');
+};
+
+/* ---------- Reproducir frase ---------- */
+$('play').onclick = () => {
+  if (!words.length) return;
+  const r = build(words);
+  lastWave = r.data;
+  const dur = r.data.length / ac().sampleRate;
+  status($('playStatus'), fmt(dur, 1) + ' s de audio' + (r.missing ? ' · ' + r.missing + ' sílaba' + (r.missing > 1 ? 's' : '') + ' sin grabar (pitido)' : ''));
+  $('stop').disabled = false;
+  const chips = [...document.querySelectorAll('#tape .chip')];
+  const start = playData(r.data, () => {
+    cancelAnimationFrame(raf); chips.forEach(c => c.classList.remove('playing'));
+    drawWave($('wave'), lastWave); $('stop').disabled = true;
+  });
+  const tick = () => {
+    const t = ctx.currentTime - start;
+    chips.forEach(c => c.classList.remove('playing'));
+    const m = r.marks.find(m => t >= m.t0 && t < m.t1);
+    if (m && chips[m.idx]) chips[m.idx].classList.add('playing');
+    drawWave($('wave'), lastWave, { head: Math.min(1, t / dur) });
+    raf = requestAnimationFrame(tick);
+  };
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+};
+$('stop').onclick = stopAll;
+$('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
+$('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
+$('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
+$('txt').oninput = renderTape;
+document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt').value = b.dataset.ex; renderTape(); });
+
+window.addEventListener('resize', () => { drawWave($('wave'), lastWave); drawG(); });
+(async () => {
+  idb = await openDB();
+  await loadAll();
+  const b = bestSentence(); gi = b >= 0 ? b : 0;
+  renderAll();
+  drawWave($('wave'), null); drawG();
+})();
+})();
+</script>
+</body>
+</html>
