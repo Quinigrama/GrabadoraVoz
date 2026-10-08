@@ -56,6 +56,7 @@ canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--b
 .chip{font:600 15px/1 var(--mono);padding:9px 11px;border-radius:7px;border:1.5px dashed var(--muted);color:var(--muted);background:transparent;cursor:pointer;min-width:40px;justify-content:center}
 .chip.has{border-style:solid;border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
 .chip.sel{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.chip.tonic{text-decoration:underline 2px;text-underline-offset:5px}
 .chip.playing{background:var(--accent);color:var(--surface);border-color:var(--accent)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -149,6 +150,11 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
         <input type="range" id="gap" min="0" max="500" value="110" step="10"></label>
     </div>
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
+    <label class="check" for="prosody"><input type="checkbox" id="prosody" checked> Entonación de frase: acento de cada palabra, melodía, preguntas y final de frase</label>
+    <div class="sliders" id="pBox">
+      <label for="pAmt">Intensidad de la entonación <output id="pAmto">100 %</output>
+        <input type="range" id="pAmt" min="0" max="200" step="10" value="100"></label>
+    </div>
     <div class="row">
       <button class="primary" id="play">▶ Leer con mi voz</button>
       <button class="ghost" id="stop" disabled>■ Parar</button>
@@ -251,7 +257,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <summary>Cómo funciona</summary>
       <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
       <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
-      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
+      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
     </details>
   </section>
 </div>
@@ -273,16 +279,16 @@ const fmt = (n, d=2) => n.toFixed(d).replace('.', ',');
 function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
 
 /* ---------- Fonética y silabeo ---------- */
-const VOW = 'aeiouíú', STRONG = 'aeoíú';
+const VOW = 'aeiouáéíóú', STRONG = 'aeoáéóíú';
 function phon(w){
   const u = [];
   for (let i = 0; i < w.length; i++){
     const c = w[i], n = w[i+1] || '', n2 = w[i+2] || '';
     const front = n !== '' && 'eéií'.includes(n);
     switch (c){
-      case 'á': u.push('a'); break;
-      case 'é': u.push('e'); break;
-      case 'ó': u.push('o'); break;
+      case 'á': u.push('á'); break;
+      case 'é': u.push('é'); break;
+      case 'ó': u.push('ó'); break;
       case 'ü': u.push('u'); break;
       case 'c': if (n === 'h'){ u.push('ĉ'); i++; } else u.push(front ? 'z' : 'k'); break;
       case 'q': u.push('k'); if (n === 'u') i++; break;
@@ -322,18 +328,34 @@ function syllabify(u){
     else if (n >= 4) take = 2;
     starts.push(b - take);
   }
-  const map = {'í':'i','ú':'u','ĉ':'ch','ř':'rr'};
-  return starts.map((s, k) => u.slice(s, starts[k+1] ?? u.length).map(x => map[x] || x).join(''));
+  const map = {'á':'a','é':'e','ó':'o','í':'i','ú':'u','ĉ':'ch','ř':'rr'};
+  const raw = starts.map((s, k) => u.slice(s, starts[k+1] ?? u.length));
+  const res = raw.map(r => r.map(x => map[x] || x).join(''));
+  res.accent = raw.findIndex(r => r.some(x => 'áéíóú'.includes(x)));
+  return res;
+}
+const ATONAS = new Set('el la los las lo un una unos unas de del al a en con por para sin y e o u ni que se me te nos os le les mi mis tu tus su sus si pero como cuando donde'.split(' '));
+function stressIdx(low, syl){
+  if (ATONAS.has(low)) return -1;
+  if (syl.accent >= 0) return syl.accent;
+  const n = syl.length;
+  if (n === 1) return 0;
+  return /[aeiouns]$/.test(low) ? n - 2 : n - 1;
 }
 function parseText(t){
   const out = [];
   for (const tok of t.split(/\s+/)){
     const parts = tok.match(/[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+/g);
     if (parts) for (const p of parts){
-      const syl = syllabify(phon(p.toLowerCase()));
-      if (syl.length) out.push({ word: p, syl, punct: false });
+      const low = p.toLowerCase(), syl = syllabify(phon(low));
+      if (syl.length) out.push({ word: p, syl, punct: false, stress: stressIdx(low, syl) });
     }
-    if (/[.,;:!?…]/.test(tok) && out.length) out[out.length-1].punct = true;
+    const m = (tok.match(/[.,;:!?…]/g) || []).join('');
+    if (m && out.length){
+      const L = out[out.length-1];
+      L.punct = true;
+      L.end = m.includes('?') ? '?' : (/[.!…]/.test(m) ? '.' : ',');
+    }
   }
   return out;
 }
@@ -692,11 +714,23 @@ function drawWave(cv, d, opt = {}){
     g.fillRect(x, h/2 - mx * h * 0.45, 1, Math.max(1, (mx - mn) * h * 0.45));
   }
   if (opt.lines){ g.fillStyle = css('--rec'); opt.lines.forEach(p => g.fillRect(p / d.length * w, 6, 1.5, h - 12)); }
+  if (opt.contour && opt.contour.some(m => m.st != null)){
+    const dur = d.length / ac().sampleRate, y = st => h / 2 - st / 8 * (h * 0.42);
+    g.strokeStyle = css('--rec'); g.fillStyle = css('--rec'); g.lineWidth = 2; g.beginPath();
+    let first = true, prevEnd = -1;
+    opt.contour.forEach(m => { if (m.st == null){ first = true; return; }
+      if (prevEnd >= 0 && m.t0 - prevEnd > 0.03) first = true;
+      prevEnd = m.t1;
+      const x0 = m.t0 / dur * w, x1 = m.t1 / dur * w, yy = y(m.st);
+      if (first){ g.moveTo(x0, yy); first = false; } else g.lineTo(x0, yy);
+      g.lineTo(x1, yy); });
+    g.stroke();
+  }
   if (opt.head != null){ g.fillStyle = css('--ink'); g.fillRect(opt.head * w, 0, 2, h); }
 }
 
 /* ---------- Lectura de la frase ---------- */
-let words = [], lastWave = null, raf = 0;
+let words = [], lastWave = null, lastMarks = null, raf = 0;
 /* Pulido de uniones */
 function env10(d, sr){ return frameRms(d, Math.max(1, Math.floor(sr * 0.01))); }
 function tightTrim(d, sr, head, tail){
@@ -720,7 +754,7 @@ function levelMatch(d, sr){
 }
 function stretch(x, sr, rate){
   const N = Math.floor(sr * 0.03), Hs = N >> 1, Ha = Hs / rate, tol = Math.floor(sr * 0.008);
-  if (rate > 0.98 || x.length < N * 3) return x;
+  if (Math.abs(rate - 1) < 0.02 || x.length < N * 3) return x;
   const outLen = Math.ceil(x.length * rate) + N, out = new Float32Array(outLen), norm = new Float32Array(outLen);
   const w = Float32Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
   let prev = 0;
@@ -730,6 +764,8 @@ function stretch(x, sr, rate){
     let pos = target;
     if (k){
       const nat = prev + Hs; let best = -Infinity;
+      if (nat + N >= x.length){ pos = target; }
+      else
       for (let dl = -tol; dl <= tol; dl += 2){
         const c0 = target + dl; if (c0 < 0) continue;
         let c = 0; for (let i = 0; i < N; i += 4) c += x[c0 + i] * x[nat + i];
@@ -743,24 +779,138 @@ function stretch(x, sr, rate){
   for (let i = 0; i < end; i++) if (norm[i] > 1e-3) out[i] /= norm[i];
   return out.slice(0, end);
 }
-function prepare(key, sr, pos, n, rate, polish){
-  let d = clipData(key);
-  if (!d) return { d: beep(sr), miss: true };
-  if (!polish) return { d, miss: false };
-  const first = pos === 0, last = pos === n - 1;
-  d = tightTrim(d, sr, first ? 0.03 : 0.07, last ? 0.05 : 0.2);
-  d = levelMatch(d, sr);
-  d = stretch(d, sr, last ? Math.min(1, (rate + 1) / 2) : rate);
-  return { d: finish(d, sr), miss: false };
+function fades(o, sr){
+  const fi = Math.min(o.length, Math.floor(sr * 0.004)), fo = Math.min(o.length, Math.floor(sr * 0.012));
+  for (let i = 0; i < fi; i++) o[i] *= i / fi;
+  for (let i = 0; i < fo; i++) o[o.length - 1 - i] *= i / fo;
+  return o;
+}
+/* Tono: detector tipo YIN sobre audio reducido a ~12 kHz */
+function pitchOf(x, sr){
+  const q = Math.max(1, Math.round(sr / 12000)), r = sr / q, n = Math.floor(x.length / q), d = new Float32Array(n);
+  for (let i = 0; i < n; i++){ let s = 0; for (let j = 0; j < q; j++) s += x[i * q + j]; d[i] = s / q; }
+  const W = Math.floor(r * 0.03), hop = Math.floor(r * 0.01), minL = Math.floor(r / 400), maxL = Math.ceil(r / 65);
+  const en = [];
+  for (let s0 = 0; s0 + W + maxL < n; s0 += hop){ let e = 0; for (let i = 0; i < W; i++) e += d[s0 + i] * d[s0 + i]; en.push(e); }
+  if (!en.length) return 0;
+  const emax = Math.max(...en), f0s = [], df = new Float32Array(maxL + 1), cm = new Float32Array(maxL + 1);
+  en.forEach((e, fi) => {
+    if (e < emax * 0.2) return;
+    const s0 = fi * hop;
+    for (let tau = 1; tau <= maxL; tau++){ let s = 0; for (let i = 0; i < W; i++){ const v = d[s0 + i] - d[s0 + i + tau]; s += v * v; } df[tau] = s; }
+    let cum = 0; cm[0] = 1;
+    for (let tau = 1; tau <= maxL; tau++){ cum += df[tau]; cm[tau] = cum ? df[tau] * tau / cum : 1; }
+    let tau = -1;
+    for (let t = minL; t <= maxL; t++) if (cm[t] < 0.15){ tau = t; while (tau + 1 <= maxL && cm[tau + 1] < cm[tau]) tau++; break; }
+    if (tau < 0){ let bt = minL; for (let t = minL; t <= maxL; t++) if (cm[t] < cm[bt]) bt = t; if (cm[bt] < 0.3) tau = bt; }
+    if (tau > 0){
+      const a = cm[tau - 1], b = cm[tau], c = tau < maxL ? cm[tau + 1] : b, den = a - 2 * b + c;
+      f0s.push(r / (tau + (den ? 0.5 * (a - c) / den : 0)));
+    }
+  });
+  if (f0s.length < 2) return 0;
+  f0s.sort((a, b) => a - b);
+  return f0s[Math.floor(f0s.length / 2)];
+}
+const f0Cache = new WeakMap();
+function clipF0(key){
+  const c = clips.get(key); if (!c) return 0;
+  if (!f0Cache.has(c)) f0Cache.set(c, pitchOf(c.data, c.sr));
+  return f0Cache.get(c);
+}
+/* Cambio de tono y duración conservando el timbre (TD-PSOLA) */
+function psola(x, sr, f0, P, D){
+  const T0 = Math.round(sr / f0);
+  if (!f0 || x.length < 3 * T0) return stretch(x, sr, D);
+  const marks = [];
+  let m = 0;
+  for (let i = 1; i < T0; i++) if (x[i] > x[m]) m = i;
+  marks.push(m);
+  for (;;){
+    const a = Math.floor(m + 0.8 * T0), b = Math.min(x.length - 1, Math.ceil(m + 1.2 * T0));
+    if (a >= x.length - 1) break;
+    let k = a; for (let i = a; i <= b; i++) if (x[i] > x[k]) k = i;
+    marks.push(k); m = k;
+    if (b >= x.length - 1) break;
+  }
+  const L = Math.max(1, Math.round(x.length * D)), T1 = T0 / P, out = new Float32Array(L + 2 * T0 + 2);
+  const win = Float32Array.from({ length: 2 * T0 + 1 }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (2 * T0)));
+  let k = 0;
+  for (let t = marks[0] * D; t < L; t += T1){
+    const ta = t / D;
+    while (k + 1 < marks.length && Math.abs(marks[k + 1] - ta) <= Math.abs(marks[k] - ta)) k++;
+    const c = marks[k], o = Math.round(t);
+    for (let i = -T0; i <= T0; i++){
+      const si = c + i, di = o + i;
+      if (si < 0 || si >= x.length || di < 0) continue;
+      out[di] += x[si] * win[i + T0];
+    }
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= P;
+  return out.slice(0, L);
+}
+/* Melodía de frase: semitonos, duración y volumen de cada sílaba */
+function prosodyPlan(ws, A){
+  const out = ws.map(w => w.syl.map(() => ({ st: 0, dur: 1, gain: 1 })));
+  let start = 0;
+  for (let i = 0; i < ws.length; i++){
+    if (!(ws[i].punct || i === ws.length - 1)) continue;
+    const end = ws[i].end || '.';
+    const items = [];
+    for (let w = start; w <= i; w++) ws[w].syl.forEach((_, si) => items.push({ w, si, ton: ws[w].stress === si }));
+    const N = items.length;
+    let L = -1; items.forEach((it, j) => { if (it.ton) L = j; });
+    items.forEach((it, j) => {
+      let st = N > 1 ? 1.5 - 3 * j / (N - 1) : 0;
+      if (it.ton) st += 2.5;
+      if (L >= 0 && j >= L){
+        const k = N - 1 > L ? (j - L) / (N - 1 - L) : 1;
+        if (end === '?') st += 1.5 + 4 * k;
+        else if (end === ',') st += j === N - 1 ? 1.5 : 0;
+        else st -= 3 * k + (L === N - 1 ? 1.5 : 0);
+      }
+      const o = out[it.w][it.si];
+      o.st = Math.max(-6, Math.min(7, st * A));
+      o.dur = (it.ton ? 1 + 0.12 * A : 1) * (j === N - 1 ? 1 + (end === ',' ? 0.15 : 0.3) * A : 1);
+      o.gain = ws[it.w].stress < 0 ? Math.max(0.7, 1 - 0.1 * A) : (it.ton ? 1 + 0.1 * A : 1);
+    });
+    start = i + 1;
+  }
+  return out;
 }
 function build(ws){
   const a = ac(), sr = a.sampleRate;
-  const polish = $('polish').checked;
+  const polish = $('polish').checked, pros = polish && $('prosody').checked, A = $('pAmt').value / 100;
   const xfMs = +$('xf').value, gap = +$('gap').value, rate = $('rate').value / 100;
   const xf = Math.floor(sr * xfMs / 1000), tolJ = Math.floor(sr * 0.01);
+  const pp = pros ? prosodyPlan(ws, A) : null;
+  const stage = ws.map(w => w.syl.map((k, si) => {
+    let d = clipData(k);
+    if (!d) return { d: beep(sr), miss: true };
+    if (!polish) return { d, miss: false };
+    d = levelMatch(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr);
+    return { d, miss: false, f0: pros ? clipF0(k) : 0 };
+  }));
+  let base = 0;
+  if (pros){
+    const fs = stage.flat().map(s => s.f0).filter(f => f > 0).sort((x, y) => x - y);
+    base = fs.length ? fs[Math.floor(fs.length / 2)] : 0;
+  }
   let total = sr * 0.5;
-  const plan = ws.map(w => {
-    const parts = w.syl.map((s, i) => prepare(s, sr, i, w.syl.length, rate, polish));
+  const plan = ws.map((w, wi) => {
+    const parts = stage[wi].map((s, si) => {
+      if (s.miss || !polish) return { d: s.d, miss: s.miss, st: null };
+      const last = si === w.syl.length - 1;
+      let D = last ? Math.min(1, (rate + 1) / 2) : rate, P = 1, g = 1;
+      if (pros){
+        const q = pp[wi][si];
+        D *= q.dur; g = q.gain;
+        if (base && s.f0) P = Math.max(0.75, Math.min(1.35, base * Math.pow(2, q.st / 12) / s.f0));
+      }
+      const d = s.f0 && (Math.abs(P - 1) > 0.02 || D > 1.02) ? psola(s.d, sr, s.f0, P, D) : stretch(s.d, sr, D);
+      if (g !== 1) for (let i = 0; i < d.length; i++) d[i] *= g;
+      return { d: fades(d, sr), miss: false, st: pros ? pp[wi][si].st : null };
+    });
     parts.forEach(p => total += p.d.length);
     total += sr * (w.punct ? gap * 2.5 + 150 : gap) / 1000;
     return { w, parts };
@@ -769,7 +919,7 @@ function build(ws){
   let pos = 0, prevLen = 0, prevClip = false, missing = 0, idx = 0;
   const marks = [];
   plan.forEach(({ w, parts }) => {
-    parts.forEach(({ d, miss }) => {
+    parts.forEach(({ d, miss, st: tone }) => {
       if (miss) missing++;
       let ov = prevClip ? Math.min(xf, Math.floor(d.length / 3), Math.floor(prevLen / 3)) : 0;
       let start = Math.max(0, pos - ov);
@@ -790,13 +940,16 @@ function build(ws){
           out[start + j] = out[start + j] * fOut + d[j] * fIn;
         } else out[start + j] += d[j];
       }
-      marks.push({ idx: idx++, t0: start / sr, t1: (start + d.length) / sr });
+      marks.push({ idx: idx++, t0: start / sr, t1: (start + d.length) / sr, st: tone });
       pos = Math.max(pos, start + d.length); prevLen = d.length; prevClip = true;
     });
     const g = w.punct ? gap * 2.5 + 150 : gap;
     if (g > 0){ pos += Math.floor(sr * g / 1000); prevClip = false; }
   });
-  return { data: out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05))), marks, missing };
+  const data = out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05)));
+  let pk = 0; for (const v of data) pk = Math.max(pk, Math.abs(v));
+  if (pk > 0.98) for (let i = 0; i < data.length; i++) data[i] *= 0.98 / pk;
+  return { data, marks, missing };
 }
 
 /* ---------- Render general ---------- */
@@ -817,6 +970,7 @@ function renderTape(){
     w.syl.forEach((s, k) => {
       if (k){ const d = document.createElement('span'); d.className = 'dash'; d.textContent = '·'; g.append(d); }
       const b = chip(s); b.dataset.idx = idx++;
+      if (k === w.stress) b.classList.add('tonic');
       b.onclick = () => { selected = s; fromBank = false; showTab('single'); renderAll(); };
       g.append(b);
     });
@@ -1116,21 +1270,21 @@ $('next').onclick = () => {
 $('play').onclick = () => {
   if (!words.length) return;
   const r = build(words);
-  lastWave = r.data;
+  lastWave = r.data; lastMarks = r.marks;
   const dur = r.data.length / ac().sampleRate;
   status($('playStatus'), fmt(dur, 1) + ' s de audio' + (r.missing ? ' · ' + r.missing + ' sílaba' + (r.missing > 1 ? 's' : '') + ' sin grabar (pitido)' : ''));
   $('stop').disabled = false;
   const chips = [...document.querySelectorAll('#tape .chip')];
   const start = playData(r.data, () => {
     cancelAnimationFrame(raf); chips.forEach(c => c.classList.remove('playing'));
-    drawWave($('wave'), lastWave); $('stop').disabled = true;
+    drawWave($('wave'), lastWave, { contour: lastMarks }); $('stop').disabled = true;
   });
   const tick = () => {
     const t = ctx.currentTime - start;
     chips.forEach(c => c.classList.remove('playing'));
     const m = r.marks.find(m => t >= m.t0 && t < m.t1);
     if (m && chips[m.idx]) chips[m.idx].classList.add('playing');
-    drawWave($('wave'), lastWave, { head: Math.min(1, t / dur) });
+    drawWave($('wave'), lastWave, { head: Math.min(1, t / dur), contour: lastMarks });
     raf = requestAnimationFrame(tick);
   };
   cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
@@ -1139,6 +1293,8 @@ $('stop').onclick = stopAll;
 $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
+function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; }
+$('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
 $('txt').oninput = renderTape;
 document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt').value = b.dataset.ex; renderTape(); });
 
@@ -1200,7 +1356,7 @@ $('bkIn').onchange = async e => {
   status($('bkStatus'), parts.length ? 'Importación terminada: ' + parts.join(', ') + '.' : 'No había nada que importar.', added || replaced ? 'ok' : (bad ? 'err' : ''));
 };
 
-window.addEventListener('resize', () => { drawWave($('wave'), lastWave); drawG(); });
+window.addEventListener('resize', () => { drawWave($('wave'), lastWave, { contour: lastMarks }); drawG(); });
 (async () => {
   idb = await openDB();
   await loadAll();
