@@ -152,6 +152,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
     <label class="check" for="prosody"><input type="checkbox" id="prosody" checked> Entonación de frase: acento de cada palabra, melodía, preguntas y final de frase</label>
     <div class="sliders" id="pBox">
+      <label class="check" for="glide" style="color:var(--ink)"><input type="checkbox" id="glide" checked> Tono deslizante entre sílabas</label>
       <label for="pAmt">Intensidad de la entonación <output id="pAmto">100 %</output>
         <input type="range" id="pAmt" min="0" max="200" step="10" value="100"></label>
     </div>
@@ -257,7 +258,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <summary>Cómo funciona</summary>
       <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
       <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
-      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
+      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Las preguntas con «qué», «cómo», «dónde», «cuándo», «quién» o «cuál» bajan al final, como al hablar; solo suben las de sí o no («¿vienes?»). Con el tono deslizante, la voz pasa suavemente de una sílaba a la siguiente en vez de cambiar a saltos.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
     </details>
   </section>
 </div>
@@ -721,9 +722,9 @@ function drawWave(cv, d, opt = {}){
     opt.contour.forEach(m => { if (m.st == null){ first = true; return; }
       if (prevEnd >= 0 && m.t0 - prevEnd > 0.03) first = true;
       prevEnd = m.t1;
-      const x0 = m.t0 / dur * w, x1 = m.t1 / dur * w, yy = y(m.st);
-      if (first){ g.moveTo(x0, yy); first = false; } else g.lineTo(x0, yy);
-      g.lineTo(x1, yy); });
+      const x0 = m.t0 / dur * w, x1 = m.t1 / dur * w, sv = Array.isArray(m.st) ? m.st : [m.st, m.st, m.st];
+      if (first){ g.moveTo(x0, y(sv[0])); first = false; } else g.lineTo(x0, y(sv[0]));
+      g.lineTo((x0 + x1) / 2, y(sv[1])); g.lineTo(x1, y(sv[2])); });
     g.stroke();
   }
   if (opt.head != null){ g.fillStyle = css('--ink'); g.fillRect(opt.head * w, 0, 2, h); }
@@ -833,29 +834,35 @@ function psola(x, sr, f0, P, D){
     marks.push(k); m = k;
     if (b >= x.length - 1) break;
   }
-  const L = Math.max(1, Math.round(x.length * D)), T1 = T0 / P, out = new Float32Array(L + 2 * T0 + 2);
+  const Pv = Array.isArray(P) ? P : [P, P, P];
+  const Pat = u => u < 0.5 ? Pv[0] + (Pv[1] - Pv[0]) * (u / 0.5) : Pv[1] + (Pv[2] - Pv[1]) * ((u - 0.5) / 0.5);
+  const L = Math.max(1, Math.round(x.length * D)), out = new Float32Array(L + 2 * T0 + 2);
   const win = Float32Array.from({ length: 2 * T0 + 1 }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (2 * T0)));
   let k = 0;
-  for (let t = marks[0] * D; t < L; t += T1){
-    const ta = t / D;
+  for (let t = marks[0] * D; t < L;){
+    const ta = t / D, p = Pat(Math.min(1, ta / x.length));
     while (k + 1 < marks.length && Math.abs(marks[k + 1] - ta) <= Math.abs(marks[k] - ta)) k++;
     const c = marks[k], o = Math.round(t);
     for (let i = -T0; i <= T0; i++){
       const si = c + i, di = o + i;
       if (si < 0 || si >= x.length || di < 0) continue;
-      out[di] += x[si] * win[i + T0];
+      out[di] += x[si] * win[i + T0] / p;
     }
+    t += T0 / p;
   }
-  for (let i = 0; i < out.length; i++) out[i] /= P;
   return out.slice(0, L);
 }
 /* Melodía de frase: semitonos, duración y volumen de cada sílaba */
+const INTERROG = new Set('qué quién quiénes cuál cuáles cuánto cuánta cuántos cuántas cómo dónde adónde cuándo'.split(' '));
 function prosodyPlan(ws, A){
-  const out = ws.map(w => w.syl.map(() => ({ st: 0, dur: 1, gain: 1 })));
+  const out = ws.map(w => w.syl.map(() => ({ st: 0, st0: 0, st1: 0, dur: 1, gain: 1 })));
   let start = 0;
   for (let i = 0; i < ws.length; i++){
     if (!(ws[i].punct || i === ws.length - 1)) continue;
     const end = ws[i].end || '.';
+    let whIdx = -1;
+    for (let w = start; w <= i; w++) if (INTERROG.has(ws[w].word.toLowerCase())){ whIdx = w; break; }
+    const wh = end === '?' && whIdx >= 0;
     const items = [];
     for (let w = start; w <= i; w++) ws[w].syl.forEach((_, si) => items.push({ w, si, ton: ws[w].stress === si }));
     const N = items.length;
@@ -863,9 +870,11 @@ function prosodyPlan(ws, A){
     items.forEach((it, j) => {
       let st = N > 1 ? 1.5 - 3 * j / (N - 1) : 0;
       if (it.ton) st += 2.5;
+      if (wh && it.w === whIdx && it.ton) st += 2;
       if (L >= 0 && j >= L){
         const k = N - 1 > L ? (j - L) / (N - 1 - L) : 1;
-        if (end === '?') st += 1.5 + 4 * k;
+        if (wh) st -= 2 * k + (L === N - 1 ? 1 : 0);
+        else if (end === '?') st += 1.5 + 4 * k;
         else if (end === ',') st += j === N - 1 ? 1.5 : 0;
         else st -= 3 * k + (L === N - 1 ? 1.5 : 0);
       }
@@ -873,6 +882,13 @@ function prosodyPlan(ws, A){
       o.st = Math.max(-6, Math.min(7, st * A));
       o.dur = (it.ton ? 1 + 0.12 * A : 1) * (j === N - 1 ? 1 + (end === ',' ? 0.15 : 0.3) * A : 1);
       o.gain = ws[it.w].stress < 0 ? Math.max(0.7, 1 - 0.1 * A) : (it.ton ? 1 + 0.1 * A : 1);
+    });
+    const sts = items.map(it => out[it.w][it.si].st);
+    items.forEach((it, j) => {
+      const o = out[it.w][it.si];
+      o.st0 = j > 0 ? (sts[j - 1] + sts[j]) / 2 : sts[j];
+      o.st1 = j < N - 1 ? (sts[j] + sts[j + 1]) / 2 : sts[j] + (end === '?' && !wh ? 2 : end === ',' ? 0.5 : -1) * A;
+      o.st1 = Math.max(-7, Math.min(9, o.st1));
     });
     start = i + 1;
   }
@@ -905,11 +921,16 @@ function build(ws){
       if (pros){
         const q = pp[wi][si];
         D *= q.dur; g = q.gain;
-        if (base && s.f0) P = Math.max(0.75, Math.min(1.35, base * Math.pow(2, q.st / 12) / s.f0));
+        if (base && s.f0){
+          const toP = st => Math.max(0.72, Math.min(1.4, base * Math.pow(2, st / 12) / s.f0));
+          P = $('glide').checked ? [toP(q.st0), toP(q.st), toP(q.st1)] : toP(q.st);
+        }
       }
-      const d = s.f0 && (Math.abs(P - 1) > 0.02 || D > 1.02) ? psola(s.d, sr, s.f0, P, D) : stretch(s.d, sr, D);
+      const moved = Array.isArray(P) ? P.some(v => Math.abs(v - 1) > 0.02) : Math.abs(P - 1) > 0.02;
+      const d = s.f0 && (moved || D > 1.02) ? psola(s.d, sr, s.f0, P, D) : stretch(s.d, sr, D);
       if (g !== 1) for (let i = 0; i < d.length; i++) d[i] *= g;
-      return { d: fades(d, sr), miss: false, st: pros ? pp[wi][si].st : null };
+      const q = pros ? pp[wi][si] : null;
+      return { d: fades(d, sr), miss: false, st: q ? ($('glide').checked ? [q.st0, q.st, q.st1] : [q.st, q.st, q.st]) : null };
     });
     parts.forEach(p => total += p.d.length);
     total += sr * (w.punct ? gap * 2.5 + 150 : gap) / 1000;
