@@ -100,6 +100,13 @@ canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--b
 .status.err{color:var(--rec)}
 .status.ok{color:var(--ok)}
 .bank{display:flex;flex-wrap:wrap;gap:8px}
+.chip[data-n]{position:relative}
+.chip[data-n]::after{content:attr(data-n);position:absolute;top:-7px;right:-7px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--ink);color:var(--surface);font:600 10px/17px var(--body);text-align:center}
+.vers{display:grid;gap:10px;padding:14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.vrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-block:6px;border-top:1px solid var(--line)}
+.vrow:first-of-type{border-top:0}
+.vrow .vlab{flex:1 1 180px;min-width:0;font-size:13px;color:var(--muted)}
+.vrow .vlab b{color:var(--ink)}
 .bank .chip{touch-action:manipulation;-webkit-user-select:none;user-select:none;font-size:13px;padding:7px 9px;min-width:0}
 .progress{height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
 .progress i{display:block;height:100%;background:var(--accent)}
@@ -150,6 +157,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
         <input type="range" id="gap" min="0" max="500" value="110" step="10"></label>
     </div>
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
+    <label class="check" for="unitsel"><input type="checkbox" id="unitsel" checked> Elegir la mejor versión de cada sílaba según dónde va</label>
     <label class="check" for="prosody"><input type="checkbox" id="prosody" checked> Entonación de frase: acento de cada palabra, melodía, preguntas y final de frase</label>
     <div class="sliders" id="pBox">
       <label class="check" for="glide" style="color:var(--ink)"><input type="checkbox" id="glide" checked> Tono deslizante entre sílabas</label>
@@ -201,7 +209,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="status" id="gStatus">Graba o sube la lectura de esta frase.</div>
     <div id="gReviewBox" hidden>
       <div class="label" style="margin-bottom:8px">Revisa los cortes</div>
-      <p class="note" style="margin-bottom:10px">Toca una sílaba para oírla. Las marcadas se guardarán en tu banco; las que ya tenías vienen sin marcar por si quieres reemplazarlas.</p>
+      <p class="note" style="margin-bottom:10px">Toca una sílaba para oírla. Las marcadas se guardarán: las nuevas entran en tu banco y las que ya tenías se añaden como otra versión, para que la app elija la que mejor encaje al leer. Desmarca las que estén mal cortadas.</p>
       <div class="review" id="gReview"></div>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="gSave">Guardar</button>
@@ -242,6 +250,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <div class="row" id="clearBox"></div>
     </div>
     <div class="bank" id="bank"></div>
+    <div class="vers" id="verBox" hidden></div>
     <div class="backup">
       <div class="label">Copia de seguridad</div>
       <p class="note">Tus sílabas se guardan solo en este navegador, y cada aparato tiene su propio banco. Descarga una copia para guardarla donde quieras o pasarla al móvil, la tablet o el ordenador. Dentro del .zip, cada sílaba es un archivo .wav que puedes escuchar.</p>
@@ -258,7 +267,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <summary>Cómo funciona</summary>
       <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
       <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
-      <p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Las preguntas con «qué», «cómo», «dónde», «cuándo», «quién» o «cuál» bajan al final, como al hablar; solo suben las de sí o no («¿vienes?»). Con el tono deslizante, la voz pasa suavemente de una sílaba a la siguiente en vez de cambiar a saltos.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
+      <p>Cada sílaba puede tener hasta 5 versiones. La lectura guiada guarda versiones nuevas con una ficha: posición en la palabra, si era tónica y qué sonidos la rodeaban. Al leer, la app puntúa cada versión según encaje en su sitio y cómo une con la siguiente, y elige la mejor combinación para toda la palabra.</p><p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Las preguntas con «qué», «cómo», «dónde», «cuándo», «quién» o «cuál» bajan al final, como al hablar; solo suben las de sí o no («¿vienes?»). Con el tono deslizante, la voz pasa suavemente de una sílaba a la siguiente en vez de cambiar a saltos.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
     </details>
   </section>
 </div>
@@ -364,36 +373,102 @@ const FR = FRASES.map(f => parseText(f));
 const ALL_SYL = new Set(FR.flat().flatMap(w => w.syl));
 
 /* ---------- Almacenamiento ---------- */
-const clips = new Map();
+const clips = new Map();   // versión favorita de cada sílaba
+const extras = new Map();  // versiones extra: sílaba → [{ id, sr, data, meta }]
+const MAX_VERS = 5;
 let idb = null;
 function openDB(){
   return new Promise(res => {
     try {
-      const r = indexedDB.open('silabas-con-mi-voz', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('clips');
+      const r = indexedDB.open('silabas-con-mi-voz', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains('clips')) db.createObjectStore('clips');
+        if (!db.objectStoreNames.contains('extras')) db.createObjectStore('extras');
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = () => res(null);
     } catch(e){ res(null); }
   });
 }
-function loadAll(){
+function loadStore(name, each){
   return new Promise(res => {
     if (!idb) return res();
     try {
-      const req = idb.transaction('clips', 'readonly').objectStore('clips').openCursor();
-      req.onsuccess = () => { const c = req.result; if (c){ if (typeof c.key === 'string') clips.set(c.key, c.value); c.continue(); } else res(); };
+      const req = idb.transaction(name, 'readonly').objectStore(name).openCursor();
+      req.onsuccess = () => { const c = req.result; if (c){ if (typeof c.key === 'string') each(c.key, c.value); c.continue(); } else res(); };
       req.onerror = () => res();
     } catch(e){ res(); }
   });
 }
-function store(op, k, v){
+async function loadAll(){
+  await loadStore('clips', (k, v) => clips.set(k, v));
+  await loadStore('extras', (k, v) => {
+    const syl = k.split('#')[0];
+    if (!extras.has(syl)) extras.set(syl, []);
+    extras.get(syl).push(v);
+  });
+  extras.forEach(a => a.sort((x, y) => x.id - y.id));
+}
+function storeIn(name, op, k, v){
   try {
     if (!idb) return;
-    const s = idb.transaction('clips', 'readwrite').objectStore('clips');
+    const s = idb.transaction(name, 'readwrite').objectStore(name);
     if (op === 'put') s.put(v, k); else if (op === 'del') s.delete(k); else s.clear();
   } catch(e){}
 }
-function saveSyl(k, data, sr){ const v = { sr, data }; clips.set(k, v); store('put', k, v); askPersist(); }
+function store(op, k, v){ storeIn('clips', op, k, v); }
+function storeX(op, k, v){ storeIn('extras', op, k, v); }
+function saveSyl(k, data, sr, meta){ const v = { sr, data, meta: meta || null }; clips.set(k, v); store('put', k, v); askPersist(); }
+let lastId = 0;
+function newId(){ lastId = Math.max(Date.now(), lastId + 1); return lastId; }
+function nVers(k){ return (clips.has(k) ? 1 : 0) + (extras.get(k) || []).length; }
+function versions(k){
+  const out = [];
+  if (clips.has(k)) out.push({ id: 'p', fav: true, take: clips.get(k) });
+  (extras.get(k) || []).forEach(e => out.push({ id: e.id, fav: false, take: e }));
+  return out;
+}
+function addVersion(k, data, sr, meta){
+  if (!clips.has(k)) return saveSyl(k, data, sr, meta);
+  const arr = extras.get(k) || [];
+  const v = { id: newId(), sr, data, meta: meta || null };
+  arr.push(v);
+  while (arr.length > MAX_VERS - 1){ const old = arr.shift(); storeX('del', k + '#' + old.id); }
+  extras.set(k, arr); storeX('put', k + '#' + v.id, v); askPersist();
+}
+function setFavorite(k, id){
+  const arr = extras.get(k) || [], i = arr.findIndex(e => e.id === id), p = clips.get(k);
+  if (i < 0 || !p) return;
+  const e = arr[i], old = { id: newId(), sr: p.sr, data: p.data, meta: p.meta || null };
+  arr.splice(i, 1, old);
+  storeX('del', k + '#' + e.id); storeX('put', k + '#' + old.id, old);
+  saveSyl(k, e.data, e.sr, e.meta);
+}
+function deleteVersion(k, id){
+  const arr = extras.get(k) || [];
+  if (id === 'p'){
+    if (arr.length){ const e = arr.shift(); storeX('del', k + '#' + e.id); saveSyl(k, e.data, e.sr, e.meta); }
+    else { clips.delete(k); store('del', k); }
+  } else {
+    const i = arr.findIndex(e => e.id === id);
+    if (i >= 0){ arr.splice(i, 1); storeX('del', k + '#' + id); }
+  }
+  if (!arr.length) extras.delete(k);
+}
+function clearBank(){ clips.clear(); extras.clear(); store('clear'); storeX('clear'); }
+function firstU(sy){ return /^(ch|rr)/.test(sy) ? sy.slice(0, 2) : sy[0]; }
+function lastU(sy){ return /(ch|rr)$/.test(sy) ? sy.slice(-2) : sy[sy.length - 1]; }
+function sylMeta(word, j, src){
+  const n = word.syl.length;
+  return {
+    pos: n === 1 ? 'mono' : j === 0 ? 'ini' : j === n - 1 ? 'fin' : 'med',
+    ton: word.stress === j,
+    prev: j > 0 ? lastU(word.syl[j - 1]) : '#',
+    next: j < n - 1 ? firstU(word.syl[j + 1]) : '#',
+    src
+  };
+}
 let persistAsked = false;
 function askPersist(){
   if (persistAsked) return; persistAsked = true;
@@ -472,7 +547,14 @@ function backupName(){
 }
 function buildBackup(){
   const keys = [...clips.keys()].sort((a, b) => a.localeCompare(b, 'es'));
-  return makeZip(keys.map(k => { const c = clips.get(k); return { name: k + '.wav', data: wavBytes(c.data, c.sr) }; }));
+  const files = [], fichas = {};
+  keys.forEach(k => versions(k).forEach((v, i) => {
+    const name = k + (i ? '~' + (i + 1) : '') + '.wav';
+    files.push({ name, data: wavBytes(v.take.data, v.take.sr) });
+    if (v.take.meta) fichas[name] = v.take.meta;
+  }));
+  files.push({ name: 'fichas.json', data: new TextEncoder().encode(JSON.stringify(fichas)) });
+  return makeZip(files);
 }
 
 /* ---------- Audio básico ---------- */
@@ -813,11 +895,61 @@ function pitchOf(x, sr){
   f0s.sort((a, b) => a - b);
   return f0s[Math.floor(f0s.length / 2)];
 }
-const f0Cache = new WeakMap();
-function clipF0(key){
-  const c = clips.get(key); if (!c) return 0;
-  if (!f0Cache.has(c)) f0Cache.set(c, pitchOf(c.data, c.sr));
-  return f0Cache.get(c);
+const f0Cache = new WeakMap(), edgeCache = new WeakMap();
+function f0Of(t){
+  if (!t) return 0;
+  if (!f0Cache.has(t)) f0Cache.set(t, pitchOf(t.data, t.sr));
+  return f0Cache.get(t);
+}
+function clipF0(key){ return f0Of(clips.get(key)); }
+function edgesOf(t){
+  if (!edgeCache.has(t)){
+    const d = t.data, n = Math.min(d.length, Math.floor(t.sr * 0.03));
+    const rms = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, b - a)); };
+    const all = rms(0, d.length) || 1e-6;
+    edgeCache.set(t, { s: rms(0, n) / all, e: rms(d.length - n, d.length) / all });
+  }
+  return edgeCache.get(t);
+}
+/* Selección de unidades: elige la versión de cada sílaba con mejor encaje y mejores uniones */
+function chooseTakes(ws, pp, base){
+  const target = (c, w, wi, si) => {
+    const m = c.take.meta || {}, n = w.syl.length;
+    const pos = n === 1 ? 'mono' : si === 0 ? 'ini' : si === n - 1 ? 'fin' : 'med';
+    const prev = si > 0 ? lastU(w.syl[si - 1]) : '#', next = si < n - 1 ? firstU(w.syl[si + 1]) : '#';
+    let cost = 0;
+    cost += m.pos ? (m.pos === pos ? 0 : 1) : 0.5;
+    cost += m.ton == null ? 0.4 : (m.ton === (w.stress === si) ? 0 : 0.8);
+    cost += m.prev == null ? 0.15 : (m.prev === prev ? 0 : 0.3);
+    cost += m.next == null ? 0.15 : (m.next === next ? 0 : 0.3);
+    if (pp && base){ const f = f0Of(c.take); if (f) cost += 0.15 * Math.abs(12 * Math.log2(base * Math.pow(2, pp[wi][si].st / 12) / f)); }
+    if (c.fav) cost -= 0.2;
+    return cost;
+  };
+  const join = (a, b) => {
+    const ea = edgesOf(a.take), eb = edgesOf(b.take);
+    let cost = 0.25 * Math.abs(Math.log((ea.e + 1e-3) / (eb.s + 1e-3)));
+    if (!pp){ const fa = f0Of(a.take), fb = f0Of(b.take); if (fa && fb) cost += 0.1 * Math.abs(12 * Math.log2(fa / fb)); }
+    return cost;
+  };
+  return ws.map((w, wi) => {
+    const cand = w.syl.map(k => versions(k));
+    if (cand.some(c => !c.length)) return cand.map(c => c[0] || null);
+    let cost = cand[0].map(c => target(c, w, wi, 0)), back = [];
+    for (let si = 1; si < cand.length; si++){
+      const nc = [], nb = [];
+      cand[si].forEach(c => {
+        let best = Infinity, bi = 0;
+        cand[si - 1].forEach((p, pi) => { const v = cost[pi] + join(p, c); if (v < best){ best = v; bi = pi; } });
+        nc.push(best + target(c, w, wi, si)); nb.push(bi);
+      });
+      cost = nc; back.push(nb);
+    }
+    let bi = cost.indexOf(Math.min(...cost));
+    const path = [bi];
+    for (let si = cand.length - 1; si > 0; si--){ bi = back[si - 1][bi]; path.unshift(bi); }
+    return path.map((ci, si) => cand[si][ci]);
+  });
 }
 /* Cambio de tono y duración conservando el timbre (TD-PSOLA) */
 function psola(x, sr, f0, P, D){
@@ -900,18 +1032,23 @@ function build(ws){
   const xfMs = +$('xf').value, gap = +$('gap').value, rate = $('rate').value / 100;
   const xf = Math.floor(sr * xfMs / 1000), tolJ = Math.floor(sr * 0.01);
   const pp = pros ? prosodyPlan(ws, A) : null;
-  const stage = ws.map(w => w.syl.map((k, si) => {
-    let d = clipData(k);
-    if (!d) return { d: beep(sr), miss: true };
-    if (!polish) return { d, miss: false };
-    d = levelMatch(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr);
-    return { d, miss: false, f0: pros ? clipF0(k) : 0 };
-  }));
   let base = 0;
   if (pros){
-    const fs = stage.flat().map(s => s.f0).filter(f => f > 0).sort((x, y) => x - y);
+    const fs = ws.flatMap(w => w.syl.flatMap(k => versions(k).map(v => f0Of(v.take)))).filter(f => f > 0).sort((x, y) => x - y);
     base = fs.length ? fs[Math.floor(fs.length / 2)] : 0;
   }
+  const useSel = polish && $('unitsel').checked;
+  const chosen = useSel ? chooseTakes(ws, pp, base) : ws.map(w => w.syl.map(k => versions(k)[0] || null));
+  let alt = 0;
+  const stage = ws.map((w, wi) => w.syl.map((k, si) => {
+    const c = chosen[wi][si];
+    if (!c) return { d: beep(sr), miss: true };
+    if (!c.fav) alt++;
+    let d = resample(c.take.data, c.take.sr, sr);
+    if (!polish) return { d, miss: false };
+    d = levelMatch(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr);
+    return { d, miss: false, f0: pros ? f0Of(c.take) : 0 };
+  }));
   let total = sr * 0.5;
   const plan = ws.map((w, wi) => {
     const parts = stage[wi].map((s, si) => {
@@ -970,7 +1107,7 @@ function build(ws){
   const data = out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05)));
   let pk = 0; for (const v of data) pk = Math.max(pk, Math.abs(v));
   if (pk > 0.98) for (let i = 0; i < data.length; i++) data[i] *= 0.98 / pk;
-  return { data, marks, missing };
+  return { data, marks, missing, alt };
 }
 
 /* ---------- Render general ---------- */
@@ -979,6 +1116,8 @@ function chip(key){
   const b = document.createElement('button');
   b.className = 'chip' + (clips.has(key) ? ' has' : '') + (key === selected ? ' sel' : '');
   b.textContent = key;
+  const n = nVers(key);
+  if (n > 1){ b.dataset.n = n; b.setAttribute('aria-label', key + ', ' + n + ' versiones'); }
   return b;
 }
 function renderTape(){
@@ -1016,6 +1155,56 @@ function renderBank(){
   });
   const box = $('clearBox'); box.innerHTML = '';
   if (keys.length) box.append(clearBtn());
+  renderVersions();
+}
+const POS_TXT = { ini: 'inicio de palabra', med: 'mitad de palabra', fin: 'final de palabra', mono: 'palabra de una sílaba' };
+let delArm = null;
+function renderVersions(){
+  const box = $('verBox'), k = selected;
+  if (!k || !clips.has(k)){ box.hidden = true; return; }
+  const vs = versions(k);
+  box.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'row between';
+  head.innerHTML = '<div class="label">Versiones de «' + k + '» · ' + vs.length + ' de ' + MAX_VERS + '</div>';
+  const rr = document.createElement('button'); rr.className = 'ghost small'; rr.textContent = '● Regrabar la favorita';
+  rr.onclick = () => reRecord(k);
+  head.append(rr); box.append(head);
+  vs.forEach((v, i) => {
+    const row = document.createElement('div'); row.className = 'vrow';
+    const pl = document.createElement('button'); pl.className = 'small'; pl.textContent = '▶';
+    pl.setAttribute('aria-label', 'Escuchar versión ' + (i + 1));
+    pl.onclick = () => playData(resample(v.take.data, v.take.sr, ac().sampleRate));
+    const lab = document.createElement('span'); lab.className = 'vlab';
+    const m = v.take.meta, bits = [];
+    if (m && m.pos) bits.push(POS_TXT[m.pos]);
+    if (m && m.ton != null) bits.push(m.ton ? 'tónica' : 'átona');
+    if (m && m.src === 'suelta') bits.push('grabada suelta');
+    if (!m) bits.push('sin ficha');
+    const f = f0Of(v.take);
+    bits.push(fmt(v.take.data.length / v.take.sr) + ' s' + (f ? ' · ' + Math.round(f) + ' Hz' : ''));
+    lab.innerHTML = '<b>' + (v.fav ? '★ Favorita' : 'Versión ' + (i + 1)) + '</b> · ' + bits.join(' · ');
+    row.append(pl, lab);
+    if (!v.fav){
+      const fv = document.createElement('button'); fv.className = 'ghost small'; fv.textContent = '★ Favorita';
+      fv.onclick = () => { setFavorite(k, v.id); delArm = null; renderAll(); };
+      row.append(fv);
+    }
+    const del = document.createElement('button');
+    const armed = delArm === k + '|' + v.id;
+    del.className = armed ? 'recbtn small' : 'ghost small'; del.textContent = armed ? '¿Seguro?' : 'Borrar';
+    del.onclick = () => {
+      if (!armed){ delArm = k + '|' + v.id; renderVersions(); return; }
+      deleteVersion(k, v.id); delArm = null;
+      if (!clips.has(k)) selected = null;
+      renderAll();
+    };
+    row.append(del);
+    box.append(row);
+  });
+  const note = document.createElement('p'); note.className = 'note';
+  note.textContent = 'Al leer, la app elige sola la versión que mejor encaja en cada sitio; la favorita tiene un poco de preferencia y es la que se usa si no hay ninguna mejor. Las versiones nuevas llegan desde la lectura guiada.';
+  box.append(note);
+  box.hidden = false;
 }
 function clearBtn(){
   const c = document.createElement('button'); c.className = 'ghost small'; c.textContent = 'Borrar todas';
@@ -1023,7 +1212,7 @@ function clearBtn(){
     const box = $('clearBox'); box.innerHTML = '<span class="note">¿Borrar todas?</span>';
     const yes = document.createElement('button'); yes.textContent = 'Sí, borrar'; yes.className = 'recbtn small';
     const no = document.createElement('button'); no.textContent = 'Cancelar'; no.className = 'ghost small';
-    yes.onclick = () => { clips.clear(); store('clear'); renderAll(); };
+    yes.onclick = () => { clearBank(); selected = null; renderAll(); };
     no.onclick = () => renderBank();
     box.append(yes, no);
   };
@@ -1037,7 +1226,8 @@ function renderStudio(){
   if (!selected) $('state').textContent = 'Elige una sílaba en la frase de arriba.';
   else if (has){
     const c = clips.get(selected);
-    $('state').innerHTML = '<b>Grabada</b> · ' + fmt(c.data.length / c.sr) + ' s. Puedes repetirla cuando quieras.';
+    const n = nVers(selected);
+    $('state').innerHTML = '<b>Grabada</b> · ' + fmt(c.data.length / c.sr) + ' s' + (n > 1 ? ' · ' + n + ' versiones' : '') + '. Al grabar, sustituyes la favorita.';
   } else $('state').innerHTML = '<b>Falta por grabar.</b> Pulsa Grabar y di «' + selected + '».';
 }
 function renderCoverage(){
@@ -1144,8 +1334,8 @@ function renderReview(){
     wb.onclick = () => playData(finish(gTake.data.slice(w.start, w.end), gTake.sr));
     row.append(wb);
     w.picks = w.word.syl.map((s, j) => {
-      const exists = clips.has(s), dup = seen.has(s); seen.add(s);
-      const on = !exists && !dup;
+      const exists = clips.has(s), dup = seen.has(s), full = nVers(s) >= MAX_VERS; seen.add(s);
+      const on = !dup && !full;
       const p = document.createElement('span'); p.className = 'pick' + (on ? ' on' : '');
       const b = document.createElement('button'); b.textContent = s; b.onclick = () => playData(sylAudio(w, j));
       const lab = document.createElement('label');
@@ -1153,7 +1343,7 @@ function renderReview(){
       cb.setAttribute('aria-label', 'Guardar ' + s);
       cb.onchange = () => { p.classList.toggle('on', cb.checked); updateSaveBtn(); };
       lab.append(cb); p.append(b, lab);
-      if (exists){ const sm = document.createElement('small'); sm.textContent = 'ya la tienes'; p.append(sm); }
+      if (exists){ const sm = document.createElement('small'); sm.textContent = full ? 'ya tienes ' + MAX_VERS + ' versiones' : '+ versión ' + (nVers(s) + 1) + ' de ' + MAX_VERS; p.append(sm); }
       row.append(p);
       return cb;
     });
@@ -1164,16 +1354,22 @@ function renderReview(){
 }
 function updateSaveBtn(){
   const n = gTake ? gTake.words.reduce((t, w) => t + w.picks.filter(c => c.checked).length, 0) : 0;
-  $('gSave').textContent = 'Guardar ' + n + ' sílaba' + (n === 1 ? '' : 's');
+  $('gSave').textContent = 'Guardar ' + n + (n === 1 ? ' corte' : ' cortes');
   $('gSave').disabled = !n;
 }
 $('gSave').onclick = () => {
   let n = 0;
-  gTake.words.forEach(w => w.picks.forEach((cb, j) => { if (cb.checked){ saveSyl(w.word.syl[j], sylAudio(w, j), gTake.sr); n++; } }));
+  let nv = 0;
+  gTake.words.forEach(w => w.picks.forEach((cb, j) => {
+    if (!cb.checked) return;
+    const k = w.word.syl[j], meta = sylMeta(w.word, j, 'guiada');
+    if (clips.has(k)){ addVersion(k, sylAudio(w, j), gTake.sr, meta); nv++; }
+    else { saveSyl(k, sylAudio(w, j), gTake.sr, meta); n++; }
+  }));
   gTake = null; $('gReviewBox').hidden = true;
   renderAll(); drawG();
   const b = bestSentence();
-  status($('gStatus'), n + ' sílabas guardadas.' + (b >= 0 ? ' Te paso a la frase que más aporta ahora.' : ' ¡Texto completo!'), 'ok');
+  status($('gStatus'), n + (n === 1 ? ' sílaba nueva' : ' sílabas nuevas') + (nv ? ' y ' + nv + (nv === 1 ? ' versión extra' : ' versiones extra') : '') + ' guardadas.' + (b >= 0 ? ' Te paso a la frase que más aporta ahora.' : ' ¡Texto completo!'), 'ok');
   if (b >= 0){ gi = b; renderGuided(); }
 };
 $('gDiscard').onclick = () => { gTake = null; $('gReviewBox').hidden = true; drawG(); renderGuided(); status($('gStatus'), 'Toma descartada. Puedes volver a grabarla.'); };
@@ -1261,7 +1457,7 @@ async function ingestSingle(blob, key){
     const m = await decodeMono(blob);
     const p = trimClip(m.data, m.sr, 0.1);
     if (!p){ status($('recStatus'), 'No se oye nada en esa toma. Prueba a hablar un poco más cerca.', 'err'); return; }
-    saveSyl(key, p, m.sr);
+    saveSyl(key, p, m.sr, { src: 'suelta' });
     status($('recStatus'), '«' + key + '» guardada (' + fmt(p.length / m.sr) + ' s).', 'ok');
     renderAll(); playData(clipData(key));
   } catch(e){ status($('recStatus'), 'No he podido leer ese audio. Prueba con un archivo .m4a, .mp3 o .wav.', 'err'); }
@@ -1273,7 +1469,7 @@ $('rec').onclick = () => {
   record({ maxMs: 2000, lvl: $('lvl'), btn: $('rec'), idleText: '● Grabar', onBlob: b => ingestSingle(b, key) });
 };
 $('listen').onclick = () => selected && clips.has(selected) && playData(clipData(selected));
-$('del').onclick = () => { if (!selected) return; clips.delete(selected); store('del', selected); renderAll(); };
+$('del').onclick = () => { if (!selected) return; deleteVersion(selected, 'p'); renderAll(); };
 $('up').onchange = e => { const f = e.target.files[0]; if (f && selected) ingestSingle(f, selected); e.target.value = ''; };
 $('upLabel').addEventListener('click', e => { if (!selected){ e.preventDefault(); status($('recStatus'), 'Primero elige una sílaba.'); } });
 $('backBank').onclick = () => { fromBank = false; showTab('bank'); $('p-bank').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -1293,7 +1489,7 @@ $('play').onclick = () => {
   const r = build(words);
   lastWave = r.data; lastMarks = r.marks;
   const dur = r.data.length / ac().sampleRate;
-  status($('playStatus'), fmt(dur, 1) + ' s de audio' + (r.missing ? ' · ' + r.missing + ' sílaba' + (r.missing > 1 ? 's' : '') + ' sin grabar (pitido)' : ''));
+  status($('playStatus'), fmt(dur, 1) + ' s de audio' + (r.alt ? ' · ' + r.alt + (r.alt > 1 ? ' sílabas con otra versión' : ' sílaba con otra versión') + ' que encaja mejor' : '') + (r.missing ? ' · ' + r.missing + ' sílaba' + (r.missing > 1 ? 's' : '') + ' sin grabar (pitido)' : ''));
   $('stop').disabled = false;
   const chips = [...document.querySelectorAll('#tape .chip')];
   const start = playData(r.data, () => {
@@ -1314,7 +1510,7 @@ $('stop').onclick = stopAll;
 $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
-function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; }
+function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; }
 $('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
 $('txt').oninput = renderTape;
 document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt').value = b.dataset.ex; renderTape(); });
@@ -1348,33 +1544,51 @@ $('bkIn').onchange = async e => {
   const files = [...e.target.files]; e.target.value = '';
   if (!files.length) return;
   const replace = $('bkReplace').checked;
-  let added = 0, replaced = 0, kept = 0, bad = 0;
+  let added = 0, replaced = 0, kept = 0, bad = 0, vers = 0;
   status($('bkStatus'), 'Importando…');
-  const put = async (name, blob, raw) => {
-    const k = keyFromName(name);
+  const put = async (name, blob, raw, meta) => {
+    const file = name.split('/').pop(), mv = file.match(/^(.*?)~(\d+)(\.[^.]+)$/);
+    const k = keyFromName(mv ? mv[1] + mv[3] : file);
     if (!k){ bad++; return; }
+    if (mv && clips.has(k)){
+      try {
+        const m = await decodeMono(blob);
+        if (versions(k).some(v => v.take.sr === m.sr && v.take.data.length === m.data.length)){ kept++; return; }
+        if (nVers(k) >= MAX_VERS){ kept++; return; }
+        addVersion(k, m.data, m.sr, meta); vers++;
+      } catch(err){ bad++; }
+      return;
+    }
     if (clips.has(k) && !replace){ kept++; return; }
     try {
       const m = await decodeMono(blob);
       const d = raw ? m.data : trimClip(m.data, m.sr, 0.1);
       if (!d || !d.length){ bad++; return; }
       clips.has(k) ? replaced++ : added++;
-      saveSyl(k, d, m.sr);
+      saveSyl(k, d, m.sr, meta);
     } catch(err){ bad++; }
   };
   for (const f of files){
     if (/\.zip$/i.test(f.name) || f.type === 'application/zip'){
-      try { for (const z of await readZip(await f.arrayBuffer())) await put(z.name, new Blob([z.data]), true); }
+      try {
+        const entries = await readZip(await f.arrayBuffer());
+        let fichas = {};
+        const fj = entries.find(z => z.name.split('/').pop() === 'fichas.json');
+        if (fj){ try { fichas = JSON.parse(new TextDecoder().decode(fj.data)); } catch(err){} }
+        const wavs = entries.filter(z => z !== fj).sort((a, b) => /~\d+\./.test(a.name) - /~\d+\./.test(b.name));
+        for (const z of wavs) await put(z.name, new Blob([z.data]), true, fichas[z.name.split('/').pop()] || null);
+      }
       catch(err){ bad++; }
-    } else await put(f.name, f, false);
+    } else await put(f.name, f, false, null);
   }
   renderAll();
   const parts = [];
   if (added) parts.push(added + (added === 1 ? ' nueva' : ' nuevas'));
   if (replaced) parts.push(replaced + (replaced === 1 ? ' sustituida' : ' sustituidas'));
+  if (vers) parts.push(vers + (vers === 1 ? ' versión extra' : ' versiones extra'));
   if (kept) parts.push(kept + (kept === 1 ? ' ya la tenías' : ' ya las tenías'));
   if (bad) parts.push(bad + (bad === 1 ? ' archivo no válido' : ' archivos no válidos'));
-  status($('bkStatus'), parts.length ? 'Importación terminada: ' + parts.join(', ') + '.' : 'No había nada que importar.', added || replaced ? 'ok' : (bad ? 'err' : ''));
+  status($('bkStatus'), parts.length ? 'Importación terminada: ' + parts.join(', ') + '.' : 'No había nada que importar.', added || replaced || vers ? 'ok' : (bad ? 'err' : ''));
 };
 
 window.addEventListener('resize', () => { drawWave($('wave'), lastWave, { contour: lastMarks }); drawG(); });
