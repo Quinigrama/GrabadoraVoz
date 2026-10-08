@@ -206,6 +206,8 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <button id="rListen">🔊 Voz nativa</button>
       <button class="recbtn" id="rRec">🎤 Leer en voz alta</button>
       <button id="rMine" disabled>▶ Mi grabación</button>
+      <button class="ghost small" id="rDown" hidden>⇩ Guardar</button>
+      <button class="ghost small" id="rShare" hidden>↗ Enviar</button>
     </div>
     <p class="heard" id="rHeard"></p>
     <div class="row" id="rResult" hidden>
@@ -711,6 +713,7 @@ function renderRead(){
   $('rListen').disabled = false; $('rRec').disabled = !SR;
   $('rPrev').disabled = ri === 0; $('rNext').disabled = ri === u.length - 1;
   $('rMine').disabled = !(rUrl && rLast && rLast.ri === ri && rLast.id === t.id);
+  $('rDown').hidden = $('rMine').disabled; $('rShare').hidden = $('rMine').disabled || !canShareAudio;
   const list = $('rList'); list.innerHTML = '';
   u.forEach((x, i) => {
     const b = document.createElement('button'); b.className = 'sitem' + (i === ri ? ' cur' : '');
@@ -724,6 +727,37 @@ $('rPrev').onclick = () => { ri--; rLast = null; renderRead(); };
 $('rNext').onclick = () => { ri++; rLast = null; renderRead(); };
 $('rListen').onclick = () => { const t = curText(); if (t) speak(parseText(t.body).units[ri].text); };
 $('rMine').onclick = () => { if (rUrl) new Audio(rUrl).play(); };
+let rBlob = null, rName = 'mi-grabacion';
+function slugify(t){ return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mi-grabacion'; }
+async function toWav(blob){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const n = buf.length, ch = buf.numberOfChannels, sr = buf.sampleRate, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    const data = [...Array(ch)].map((_, c) => buf.getChannelData(c));
+    for (let i = 0; i < n; i++){ let x = 0; for (let c = 0; c < ch; c++) x += data[c][i] / ch; x = Math.max(-1, Math.min(1, x)); v.setInt16(44 + i * 2, x < 0 ? x * 32768 : x * 32767, true); }
+    return new Blob([b], { type: 'audio/wav' });
+  } finally { try { ctx.close(); } catch(e){} }
+}
+$('rDown').onclick = async () => {
+  if (!rBlob) return;
+  try {
+    const wav = await toWav(rBlob), url = URL.createObjectURL(wav), a = document.createElement('a');
+    a.href = url; a.download = rName + '.wav'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    $('rScoreTxt').textContent = 'Grabación descargada: ' + rName + '.wav. Mira en tu carpeta de Descargas.';
+  } catch(e){ $('rScoreTxt').textContent = 'No he podido preparar el audio para descargarlo.'; }
+};
+let canShareAudio = false;
+try { canShareAudio = !!(navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array(44)], 'a.wav', { type: 'audio/wav' })] })); } catch(e){}
+$('rShare').onclick = async () => {
+  if (!rBlob) return;
+  try { const wav = await toWav(rBlob); await navigator.share({ files: [new File([wav], rName + '.wav', { type: 'audio/wav' })] }); }
+  catch(e){ if (e && e.name !== 'AbortError') $('rScoreTxt').textContent = 'No se pudo enviar.'; }
+};
 let rStarting = false;
 $('rRec').onclick = async () => {
   if (rBusy){ rBusy.r.stop(); return; }
@@ -740,7 +774,7 @@ $('rRec').onclick = async () => {
       const note = rBusy && rBusy.note; rBusy = null;
       $('rRec').classList.remove('on'); $('rRec').textContent = '🎤 Leer en voz alta';
       if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
-      if (blob){ if (rUrl) URL.revokeObjectURL(rUrl); rUrl = URL.createObjectURL(blob); }
+      if (blob){ if (rUrl) URL.revokeObjectURL(rUrl); rUrl = URL.createObjectURL(blob); rBlob = blob; rName = slugify(unit.text); }
       if (!alts.length){ $('rHeard').textContent = 'No he oído nada. Pulsa otra vez y lee la frase en voz alta.'; return; }
       const res = compare(unit.text, alts);
       rLast = { ri: myRi, id: myId, res };

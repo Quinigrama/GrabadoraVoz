@@ -168,6 +168,8 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="row">
       <button class="primary" id="play">▶ Leer con mi voz</button>
       <button class="ghost" id="stop" disabled>■ Parar</button>
+      <button id="audDown">⇩ Descargar audio</button>
+      <button id="audShare" hidden>↗ Enviar</button>
     </div>
     <canvas id="wave" aria-label="Forma de onda de la frase montada"></canvas>
     <div class="status" id="playStatus"></div>
@@ -1508,6 +1510,35 @@ $('play').onclick = () => {
   cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
 };
 $('stop').onclick = stopAll;
+/* Descargar o enviar la frase leída con tu voz */
+function phraseFile(){
+  if (!words.length) return null;
+  const r = build(words), sr = ac().sampleRate;
+  const slug = $('txt').value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'mi-voz';
+  return { r, name: slug + '.wav', blob: new Blob([wavBytes(r.data, sr)], { type: 'audio/wav' }) };
+}
+$('audDown').onclick = () => {
+  const f = phraseFile();
+  if (!f) return status($('playStatus'), 'Escribe algo para poder descargarlo.', 'err');
+  const extra = f.r.missing ? ' Ojo: ' + f.r.missing + (f.r.missing > 1 ? ' sílabas suenan' : ' sílaba suena') + ' como pitido porque no están grabadas.' : '';
+  if (claudeDl){
+    claudeDl.save({ filename: f.name, data: f.blob })
+      .then(() => status($('playStatus'), 'Audio guardado: ' + f.name + '.' + extra, 'ok'))
+      .catch(e => status($('playStatus'), e && e.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar aquí. Prueba desde tu web en GitHub.', e && e.code === 'declined' ? '' : 'err'));
+    return;
+  }
+  const url = URL.createObjectURL(f.blob), a = document.createElement('a');
+  a.href = url; a.download = f.name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  status($('playStatus'), 'Audio descargado: ' + f.name + '. Mira en tu carpeta de Descargas.' + extra, 'ok');
+};
+try { if (navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array(44)], 'a.wav', { type: 'audio/wav' })] })) $('audShare').hidden = false; } catch(e){}
+$('audShare').onclick = async () => {
+  const f = phraseFile();
+  if (!f) return status($('playStatus'), 'Escribe algo para poder enviarlo.', 'err');
+  try { await navigator.share({ files: [new File([f.blob], f.name, { type: 'audio/wav' })], title: $('txt').value.slice(0, 60) }); status($('playStatus'), 'Audio enviado.', 'ok'); }
+  catch(e){ if (e && e.name !== 'AbortError') status($('playStatus'), 'No se pudo enviar. Prueba con «Descargar audio».', 'err'); }
+};
 $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
