@@ -204,6 +204,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="sylhint" id="gSyl"></div>
     <p class="note">Léela como si dictaras: <b>palabra a palabra, con una pausa corta entre cada una</b>, en tu tono normal. Sin prisa; la grabación se para sola a los 30 segundos o cuando pulses Parar.</p>
     <label class="check" for="kOn"><input type="checkbox" id="kOn" checked> Modo karaoke: te enseño las palabras una a una, a tu ritmo</label>
+    <label class="check" for="natG"><input type="checkbox" id="natG" class="natural" checked> Grabación natural: sin los filtros del navegador (recomendado en un sitio tranquilo)</label>
     <div class="sliders" id="kBox">
       <label for="kSpeed">Velocidad del karaoke <output id="kSpeedo">1,0×</output>
         <input type="range" id="kSpeed" min="0.6" max="1.6" step="0.1" value="1"></label>
@@ -251,6 +252,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
         <div class="row"><button class="ghost" id="next">Siguiente que falta →</button><button class="ghost" id="backBank" hidden>← Volver al banco</button></div>
       </div>
     </div>
+    <label class="check" for="natS"><input type="checkbox" id="natS" class="natural" checked> Grabación natural: sin los filtros del navegador (recomendado en un sitio tranquilo)</label>
     <p class="note">Útil para rellenar huecos o repetir una sílaba que salió mal. Dila seca y natural, sin alargarla. Se para sola a los 2 segundos y el silencio sobrante se recorta.</p>
     <div class="status" id="recStatus"></div>
   </section>
@@ -279,7 +281,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <summary>Cómo funciona</summary>
       <p>El texto se pasa a una escritura fonética: «qu» y «c» fuerte suenan como «k», la «h» no suena, «v» es «b», «ll» es «y» y «ge/gi» es «je/ji». Así «queso» y «kilo» comparten la sílaba «ke». Luego cada palabra se divide en sílabas con las reglas del español.</p>
       <p>En la lectura guiada, la app busca los silencios para separar las palabras. Dentro de cada palabra sabe cuántas sílabas hay, así que localiza los picos de volumen (las vocales) y corta en el punto más bajo entre ellos.</p>
-      <p>Cada sílaba puede tener hasta 5 versiones. La lectura guiada guarda versiones nuevas con una ficha: posición en la palabra, si era tónica y qué sonidos la rodeaban. Al leer, la app puntúa cada versión según encaje en su sitio y cómo une con la siguiente, y elige la mejor combinación para toda la palabra.</p><p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Las preguntas con «qué», «cómo», «dónde», «cuándo», «quién» o «cuál» bajan al final, como al hablar; solo suben las de sí o no («¿vienes?»). Con el tono deslizante, la voz pasa suavemente de una sílaba a la siguiente en vez de cambiar a saltos.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
+      <p>Cada sílaba puede tener hasta 5 versiones. La lectura guiada guarda versiones nuevas con una ficha: posición en la palabra, si era tónica y qué sonidos la rodeaban. Al leer, la app puntúa cada versión según encaje en su sitio y cómo une con la siguiente, y elige la mejor combinación para toda la palabra.</p><p>Grabación natural: el navegador suele aplicar reducción de ruido, cancelación de eco y volumen automático, pensados para videollamadas. Cambian un poco tu timbre y el volumen de una toma a otra, y eso hace más evidentes las uniones. Sin ellos, el sonido es más fiel a tu voz; a cambio, conviene grabar en un sitio tranquilo. Además se graba con más calidad (menos compresión).</p><p>Las frases del texto de grabación están ordenadas para que cada una aporte el máximo de sílabas nuevas. Tus grabaciones se guardan solo en este navegador; usa la copia de seguridad para no perderlas.</p><p>Las preguntas con «qué», «cómo», «dónde», «cuándo», «quién» o «cuál» bajan al final, como al hablar; solo suben las de sí o no («¿vienes?»). Con el tono deslizante, la voz pasa suavemente de una sílaba a la siguiente en vez de cambiar a saltos.</p><p>Entonación de frase: la app calcula la sílaba tónica de cada palabra con las reglas de acentuación del español (subrayada en la frase). Mide el tono de cada sílaba que grabaste y lo ajusta a una melodía: sube en las tónicas, baja poco a poco, cae al final de una afirmación, sube en las preguntas y deja la voz en suspenso en las comas. La línea roja sobre la onda muestra esa melodía.</p><p>También puedes importar audios sueltos: cada archivo debe llamarse como la sílaba que contiene, por ejemplo «ka.wav» o «ña.m4a».</p>
     </details>
   </section>
 </div>
@@ -649,6 +651,11 @@ async function decodeMono(blob){
 }
 
 /* ---------- Grabadora genérica ---------- */
+/* Grabación natural: sin reducción de ruido, cancelación de eco ni volumen automático, que alteran el timbre y el volumen entre tomas */
+function recNatural(){ try { return localStorage.getItem('scmv-natural') !== '0'; } catch(e){ return true; } }
+function syncNatural(){ const v = recNatural(); document.querySelectorAll('.natural').forEach(c => c.checked = v); }
+document.querySelectorAll('.natural').forEach(c => c.addEventListener('change', () => { try { localStorage.setItem('scmv-natural', c.checked ? '1' : '0'); } catch(e){} syncNatural(); }));
+syncNatural();
 function micBlocked(){
   const m = 'No puedo usar el micrófono aquí. Dentro de la app de Claude está bloqueado: abre la página en Chrome o usa «Subir audio».';
   $('micBanner').hidden = false;
@@ -661,9 +668,12 @@ async function record({ maxMs, lvl, btn, idleText, onBlob, onStart, onLevel, onF
   let stream;
   try {
     if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error('nomic');
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const natural = recNatural();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: { ideal: 48000 }, echoCancellation: !natural, noiseSuppression: !natural, autoGainControl: !natural } });
   } catch(e){ micBlocked(); onFail && onFail(); return; }
-  const mr = new MediaRecorder(stream), chunks = [];
+  let mr;
+  try { mr = new MediaRecorder(stream, { audioBitsPerSecond: 192000 }); } catch(e){ mr = new MediaRecorder(stream); }
+  const chunks = [];
   const an = a.createAnalyser(); an.fftSize = 512;
   a.createMediaStreamSource(stream).connect(an);
   const buf = new Float32Array(an.fftSize), t0 = performance.now();

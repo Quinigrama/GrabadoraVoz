@@ -459,8 +459,9 @@ function listen({ continuous = false, onInterim, onEnd }){
 async function startRecorder(){
   if (prefs.noRec || !navigator.mediaDevices || !window.MediaRecorder) return null;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mr = new MediaRecorder(stream), chunks = [];
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    let mr; try { mr = new MediaRecorder(stream, { audioBitsPerSecond: 128000 }); } catch(e){ mr = new MediaRecorder(stream); }
+    const chunks = [];
     mr.ondataavailable = e => e.data.size && chunks.push(e.data);
     const done = new Promise(res => { mr.onstop = () => { stream.getTracks().forEach(t => t.stop()); res(new Blob(chunks, { type: mr.mimeType })); }; });
     mr.start();
