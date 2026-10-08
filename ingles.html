@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inglés en Voz Alta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: misma familia visual que la grabadora — una columna, pestañas por modo de práctica, la frase en grande como protagonista */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#1A2130; --muted:#5B6578; --line:#D3D9E3;
+  --accent:#0C7A85; --accent-soft:#D6EEF0; --rec:#D23638; --ok:#2C8A57; --ok-soft:#DDF1E5; --bad-soft:#F9E0E0; --warn:#A8670E; --warn-soft:#FBEDD3;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#11151D; --surface:#1A202D; --ink:#E5E9F1; --muted:#97A1B5; --line:#2B3345;
+  --accent:#3DC3CB; --accent-soft:#183A40; --rec:#FF5B5D; --ok:#4CC38A; --ok-soft:#173527; --bad-soft:#3F1D20; --warn:#E3A74B; --warn-soft:#3A2D14; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#11151D; --surface:#1A202D; --ink:#E5E9F1; --muted:#97A1B5; --line:#2B3345;
+  --accent:#3DC3CB; --accent-soft:#183A40; --rec:#FF5B5D; --ok:#4CC38A; --ok-soft:#173527; --bad-soft:#3F1D20; --warn:#E3A74B; --warn-soft:#3A2D14; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:24px 56px;display:grid;gap:18px}
+header{display:grid;gap:8px}
+header .back{font-size:13px;color:var(--accent);text-decoration:none;font-weight:600;width:max-content}
+header h1{font:800 clamp(28px,6vw,40px)/1.05 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px;min-width:0}
+.label{font:600 11px/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1 1 auto;min-width:0}
+button,.btn{font:600 14px/1 var(--body);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+button:hover:not(:disabled),.btn:hover{border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,.btn:focus-within,input:focus-visible,select:focus-visible,textarea:focus-visible,.w:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.recbtn{background:var(--rec);border-color:var(--rec);color:#fff}
+.recbtn.on{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion: reduce){.recbtn.on{animation:none}}
+.ghost{background:transparent}
+.small{padding:7px 12px;font-weight:500;font-size:13px}
+input[type=text],textarea,select{font:500 15px/1.4 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+select{width:auto}
+textarea{min-height:160px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:62ch}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--rec)} .status.ok{color:var(--ok)}
+.banner{border:1px solid var(--rec);border-radius:10px;padding:12px 14px;font-size:14px}
+.tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--surface);border:1px solid var(--line);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:transparent;padding:9px 14px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+@media (max-width:460px){.tabs button{padding:8px 9px;font-size:13px}}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+.settings label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.settings output{font:600 13px var(--mono);color:var(--ink)}
+/* textos */
+.tlist{display:grid;gap:8px}
+.titem{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.titem .tt{flex:1 1 180px;min-width:0}
+.titem .tt b{display:block;overflow-wrap:anywhere}
+.titem .tt span{font-size:12px;color:var(--muted)}
+.pill{font:600 12px/1 var(--body);padding:6px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-variant-numeric:tabular-nums}
+.pill.none{background:var(--bg);color:var(--muted)}
+.progress{height:8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent)}
+/* frase */
+.sentence{font:600 clamp(22px,5vw,30px)/1.45 var(--display);margin:0;text-wrap:pretty;overflow-wrap:anywhere}
+.speaker{font:600 12px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.w{display:inline-block;border-radius:6px;padding:0 3px;margin:0 1px;cursor:pointer}
+.w.good{background:var(--ok-soft)}
+.w.bad{background:var(--bad-soft);text-decoration:underline wavy var(--rec) 1.5px;text-underline-offset:5px}
+.w.maybe{background:var(--warn-soft);text-decoration:underline dotted var(--warn) 2px;text-underline-offset:5px}
+.w.sel{outline:2px solid var(--accent)}
+.heard{font-size:15px;color:var(--muted);margin:0;min-height:1.4em;overflow-wrap:anywhere}
+.heard b{color:var(--ink);font-weight:500}
+.score{font:800 34px/1 var(--display);font-variant-numeric:tabular-nums}
+.wordbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--bg)}
+.wordbar b{font:600 18px var(--display)}
+.slist{display:grid;gap:4px;max-height:260px;overflow-y:auto;padding-right:4px}
+.sitem{display:flex;gap:10px;align-items:baseline;text-align:left;border:0;border-radius:8px;padding:8px 10px;background:transparent;font:400 14px/1.4 var(--body);width:100%}
+.sitem.cur{background:var(--accent-soft)}
+.sitem .n{font:600 12px var(--mono);color:var(--muted);min-width:2.2em;font-variant-numeric:tabular-nums}
+.sitem .st{flex:1;min-width:0;overflow-wrap:anywhere}
+.sitem .sc{font:600 12px var(--mono);font-variant-numeric:tabular-nums}
+/* diálogo */
+.dlog{display:grid;gap:10px;max-height:420px;overflow-y:auto;padding:4px}
+.bubble{max-width:85%;padding:10px 14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
+.bubble.me{justify-self:end;background:var(--accent-soft);border-color:transparent}
+.bubble.now{outline:2px solid var(--accent)}
+.bubble .speaker{display:block;margin-bottom:4px}
+.bubble .txt{font-size:16px;overflow-wrap:anywhere}
+.bubble .txt.hid{filter:blur(6px);user-select:none}
+/* palabras */
+.wcard{display:grid;justify-items:center;gap:14px;padding:18px;border-radius:12px;background:var(--bg);text-align:center}
+.wcard .big{font:800 clamp(36px,10vw,56px)/1.05 var(--display);overflow-wrap:anywhere}
+.streak{display:flex;gap:6px}
+.streak i{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent)}
+.streak i.on{background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 14px/1 var(--body);padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:inline-flex;gap:6px;align-items:center}
+.chip small{font:600 11px var(--mono);color:var(--muted)}
+.chip.done{background:var(--ok-soft);border-color:transparent}
+/* hablar */
+.topic{font:700 clamp(22px,5vw,28px)/1.3 var(--display);margin:0;text-wrap:balance}
+.timer{font:800 56px/1 var(--display);font-variant-numeric:tabular-nums}
+.live{min-height:90px;padding:12px;border-radius:10px;background:var(--bg);font-size:16px;overflow-wrap:anywhere}
+.live .interim{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{padding:12px;border-radius:10px;background:var(--bg);display:grid;gap:4px}
+.stat b{font:800 26px/1 var(--display);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.hist{display:grid;gap:6px}
+.hrow{display:grid;grid-template-columns:88px 1fr 64px;gap:10px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.hrow .bar{height:10px;border-radius:99px;background:var(--accent)}
+.hrow span:last-child{text-align:right;font-weight:600}
+details summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Grabadora de sílabas</a>
+    <h1>Inglés en Voz Alta</h1>
+    <p>Lee en voz alta los textos de tus libros, mira qué palabras se te entienden, practica las difíciles y suéltate hablando.</p>
+  </header>
+
+  <div class="banner" id="noSR" hidden>Este navegador no tiene reconocimiento de voz. Abre la página en <b>Chrome</b> (en el móvil o en el ordenador) para que pueda transcribir lo que dices.</div>
+  <div class="banner" id="micMsg" hidden></div>
+
+  <section class="panel" aria-label="Ajustes">
+    <div class="settings">
+      <label for="accent">Acento
+        <select id="accent">
+          <option value="en-GB">Británico (Reino Unido)</option>
+          <option value="en-US">Americano (EE. UU.)</option>
+        </select></label>
+      <label for="rate">Velocidad de la voz nativa <output id="rateo">0,9×</output>
+        <input type="range" id="rate" min="0.5" max="1.2" step="0.05" value="0.9"></label>
+    </div>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Modos de práctica">
+    <button role="tab" id="tab-texts" aria-controls="p-texts" aria-selected="true">Textos</button>
+    <button role="tab" id="tab-read" aria-controls="p-read" aria-selected="false">Leer</button>
+    <button role="tab" id="tab-dlg" aria-controls="p-dlg" aria-selected="false">Diálogo</button>
+    <button role="tab" id="tab-words" aria-controls="p-words" aria-selected="false">Palabras · <span id="wcount">0</span></button>
+    <button role="tab" id="tab-talk" aria-controls="p-talk" aria-selected="false">Hablar</button>
+  </div>
+
+  <!-- TEXTOS -->
+  <section class="panel" id="p-texts" role="tabpanel" aria-labelledby="tab-texts">
+    <div class="row between">
+      <div class="label">Tus textos</div>
+      <button class="primary small" id="tNew">+ Nuevo texto</button>
+    </div>
+    <div class="tlist" id="tList"></div>
+    <div id="tEdit" class="panel" style="padding:14px;background:var(--bg)" hidden>
+      <div class="label" id="tEditTitle">Nuevo texto</div>
+      <input type="text" id="tTitle" placeholder="Libro y unidad, por ejemplo: English File 2 · Unit 3">
+      <div class="row">
+        <label class="btn small" for="tPhoto">📷 Sacar texto de una foto</label>
+        <input type="file" id="tPhoto" accept="image/*" capture="environment" class="hidden-input">
+        <span class="status" id="ocrStatus"></span>
+      </div>
+      <textarea id="tBody" placeholder="Pega aquí el texto o el diálogo.&#10;&#10;Para los diálogos, escribe cada intervención en su línea con el nombre delante:&#10;Anna: Good morning!&#10;Tom: Hi, Anna. How are you?"></textarea>
+      <p class="note">Si las líneas empiezan por un nombre seguido de dos puntos, la app lo trata como diálogo y podrás hacer de uno de los personajes.</p>
+      <div class="row">
+        <button class="primary" id="tSave">Guardar</button>
+        <button class="ghost" id="tCancel">Cancelar</button>
+      </div>
+    </div>
+    <div class="row" style="padding-top:12px;border-top:1px solid var(--line)">
+      <button class="small" id="bkDown">⇩ Copia de seguridad</button>
+      <label class="btn small" for="bkIn">⇪ Importar copia</label>
+      <input type="file" id="bkIn" accept=".json,application/json" class="hidden-input">
+      <span class="status" id="bkStatus"></span>
+    </div>
+    <p class="note">Tus textos, palabras e historial se guardan solo en este navegador. Usa la copia de seguridad para pasarlos a otro aparato.</p>
+  </section>
+
+  <!-- LEER -->
+  <section class="panel" id="p-read" role="tabpanel" aria-labelledby="tab-read" hidden>
+    <div class="row between">
+      <div class="label grow" id="rTitle">Elige un texto en «Textos»</div>
+      <span class="pill none" id="rProg"></span>
+    </div>
+    <div class="speaker" id="rSpeaker" hidden></div>
+    <p class="sentence" id="rSentence"></p>
+    <div class="wordbar" id="wordBar" hidden>
+      <b id="wbWord"></b>
+      <button class="small" id="wbSay">🔊 Escuchar</button>
+      <button class="small" id="wbAdd">+ A palabras difíciles</button>
+    </div>
+    <div class="row">
+      <button id="rListen">🔊 Voz nativa</button>
+      <button class="recbtn" id="rRec">🎤 Leer en voz alta</button>
+      <button id="rMine" disabled>▶ Mi grabación</button>
+    </div>
+    <p class="heard" id="rHeard"></p>
+    <div class="row" id="rResult" hidden>
+      <span class="score" id="rScore"></span>
+      <span class="note grow" id="rScoreTxt"></span>
+    </div>
+    <div class="row">
+      <button class="ghost" id="rPrev">← Anterior</button>
+      <button class="ghost" id="rNext">Siguiente →</button>
+    </div>
+    <p class="note">Verde: se entiende. Ámbar: casi, Google dudó. Rojo: no se entiende. Toca cualquier palabra para oírla o añadirla a tus palabras difíciles; las rojas se añaden solas.</p>
+    <div class="label">Frases del texto</div>
+    <div class="slist" id="rList"></div>
+  </section>
+
+  <!-- DIÁLOGO -->
+  <section class="panel" id="p-dlg" role="tabpanel" aria-labelledby="tab-dlg" hidden>
+    <div class="label" id="dTitle">Elige un diálogo en «Textos»</div>
+    <p class="note" id="dNone" hidden>Este texto no es un diálogo. Para usar este modo, escribe cada intervención en su línea con el nombre delante, por ejemplo «Anna: Good morning!».</p>
+    <div id="dBox" hidden style="display:grid;gap:14px">
+      <div class="row">
+        <label for="dRole" class="note">Yo hago de</label>
+        <select id="dRole"></select>
+        <label class="note" for="dHide" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="dHide"> Ocultar mis frases (modo reto)</label>
+      </div>
+      <div class="row">
+        <button class="primary" id="dStart">▶ Empezar</button>
+        <button class="ghost" id="dStop" disabled>■ Parar</button>
+        <button class="ghost" id="dRetry" disabled>↺ Repetir mi frase</button>
+      </div>
+      <div class="status" id="dStatus"></div>
+      <div class="dlog" id="dLog"></div>
+    </div>
+  </section>
+
+  <!-- PALABRAS -->
+  <section class="panel" id="p-words" role="tabpanel" aria-labelledby="tab-words" hidden>
+    <div class="label">Practicar palabras difíciles</div>
+    <div class="wcard" id="wCard">
+      <div class="big" id="wBig">—</div>
+      <div class="streak" id="wStreak" aria-label="Aciertos seguidos"><i></i><i></i><i></i></div>
+      <div class="row" style="justify-content:center">
+        <button id="wSay">🔊 Escuchar</button>
+        <button class="recbtn" id="wRec">🎤 Decirla</button>
+        <button class="ghost" id="wNext">Otra →</button>
+      </div>
+      <p class="heard" id="wHeard"></p>
+    </div>
+    <p class="note">Cuando la dices bien tres veces seguidas, pasa a «Dominadas».</p>
+    <div class="row">
+      <input type="text" id="wAddIn" placeholder="Añadir una palabra o expresión" style="flex:1 1 200px;width:auto">
+      <button class="small" id="wAddBtn">+ Añadir</button>
+    </div>
+    <div class="label">Por practicar</div>
+    <div class="chips" id="wList"></div>
+    <div class="label">Dominadas</div>
+    <div class="chips" id="wDone"></div>
+  </section>
+
+  <!-- HABLAR -->
+  <section class="panel" id="p-talk" role="tabpanel" aria-labelledby="tab-talk" hidden>
+    <div class="label">Habla libre</div>
+    <p class="topic" id="kTopic"></p>
+    <p class="note" id="kTopicEs"></p>
+    <div class="row">
+      <button class="ghost small" id="kNew">↻ Otro tema</button>
+      <label class="note" for="kDur">Duración</label>
+      <select id="kDur"><option value="30">30 s</option><option value="60" selected>1 min</option><option value="120">2 min</option></select>
+    </div>
+    <div class="row">
+      <span class="timer" id="kTimer">1:00</span>
+      <button class="recbtn" id="kGo">🎤 Empezar a hablar</button>
+    </div>
+    <div class="live" id="kLive"><span class="interim">Lo que digas aparecerá aquí. No te preocupes por los errores: lo importante es no pararse.</span></div>
+    <div class="stats" id="kStats" hidden>
+      <div class="stat"><b id="kWords">0</b><span>palabras</span></div>
+      <div class="stat"><b id="kWpm">0</b><span>palabras por minuto</span></div>
+      <div class="stat"><b id="kUniq">0</b><span>palabras distintas</span></div>
+    </div>
+    <div class="label">Tu progreso</div>
+    <div class="hist" id="kHist"></div>
+    <details>
+      <summary>Cómo funciona</summary>
+      <p>La transcripción la hace el reconocedor de voz de Chrome (Google), que necesita internet. Un hablante nativo en conversación ronda las 120-150 palabras por minuto; ver cómo sube tu cifra semana a semana es una buena señal de que te estás soltando.</p>
+      <p>El texto de las fotos se lee dentro del navegador con un lector de imágenes gratuito. Revísalo antes de guardar: con fotos torcidas o con poca luz se equivoca.</p>
+    </details>
+  </section>
+</div>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 1) => n.toFixed(d).replace('.', ',');
+function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- Datos guardados ---------- */
+const S = { texts: [], words: [], history: [] };
+let db = null;
+function openDB(){
+  return new Promise(res => {
+    try {
+      const r = indexedDB.open('ingles-en-voz-alta', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result); r.onerror = () => res(null);
+    } catch(e){ res(null); }
+  });
+}
+function load(key){
+  return new Promise(res => {
+    if (!db) return res(null);
+    try { const q = db.transaction('kv').objectStore('kv').get(key); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }
+    catch(e){ res(null); }
+  });
+}
+function save(key){
+  try { if (db) db.transaction('kv', 'readwrite').objectStore('kv').put(S[key], key); } catch(e){}
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
+}
+const prefs = { accent: 'en-GB', rate: 0.9, noRec: false, hide: false };
+function loadPrefs(){ try { Object.assign(prefs, JSON.parse(localStorage.getItem('ingles-prefs') || '{}')); } catch(e){} }
+function savePrefs(){ try { localStorage.setItem('ingles-prefs', JSON.stringify(prefs)); } catch(e){} }
+
+/* ---------- Texto: frases y diálogos ---------- */
+const SPEAKER = /^\s*([A-Z][A-Za-z.'\- ]{0,22}?)\s*:\s*(.+)$/;
+function parseText(body){
+  const lines = body.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const spk = lines.filter(l => SPEAKER.test(l)).length;
+  if (lines.length >= 2 && spk >= Math.max(2, lines.length * 0.6)){
+    const units = [];
+    lines.forEach(l => {
+      const m = l.match(SPEAKER);
+      if (m) units.push({ speaker: m[1].trim(), text: m[2].trim() });
+      else if (units.length) units[units.length - 1].text += ' ' + l;
+    });
+    return { dialogue: true, units };
+  }
+  const flat = lines.join(' ').replace(/\s+/g, ' ');
+  const units = flat.split(/(?<=[.!?…])\s+(?=["“‘(]?[A-Z0-9¿¡])/).map(t => ({ speaker: null, text: t.trim() })).filter(u => u.text);
+  return { dialogue: false, units };
+}
+function speakersOf(p){ return [...new Set(p.units.map(u => u.speaker))]; }
+
+/* ---------- Comparar lo dicho con lo esperado ---------- */
+const CONTR = { "i'm": 'i am', "you're": 'you are', "we're": 'we are', "they're": 'they are', "he's": 'he is', "she's": 'she is', "it's": 'it is', "that's": 'that is', "what's": 'what is', "where's": 'where is', "there's": 'there is', "here's": 'here is', "who's": 'who is', "let's": 'let us', "i've": 'i have', "you've": 'you have', "we've": 'we have', "they've": 'they have', "i'll": 'i will', "you'll": 'you will', "he'll": 'he will', "she'll": 'she will', "we'll": 'we will', "they'll": 'they will', "it'll": 'it will', "i'd": 'i would', "you'd": 'you would', "he'd": 'he would', "she'd": 'she would', "we'd": 'we would', "they'd": 'they would', "don't": 'do not', "doesn't": 'does not', "didn't": 'did not', "can't": 'can not', "cannot": 'can not', "won't": 'will not', "isn't": 'is not', "aren't": 'are not', "wasn't": 'was not', "weren't": 'were not', "haven't": 'have not', "hasn't": 'has not', "hadn't": 'had not', "couldn't": 'could not', "wouldn't": 'would not', "shouldn't": 'should not', "mustn't": 'must not', "gonna": 'going to', "wanna": 'want to', "okay": 'ok', "o.k.": 'ok', "mr": 'mister', "mrs": 'missus', "ms": 'miss' };
+const NUM = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+function normTok(w){
+  w = w.toLowerCase().replace(/[’‘`´]/g, "'").replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, '').replace(/^'+|'+$/g, '');
+  if (!w) return [];
+  if (CONTR[w]) return CONTR[w].split(' ');
+  if (/^\d+$/.test(w)) return [+w <= 20 ? NUM[+w] : w];
+  if (/'s$/.test(w)) return [w.slice(0, -2)];
+  return [w.replace(/'/g, '')];
+}
+function displayWords(text){ return text.split(/\s+/).filter(Boolean); }
+function tokensOf(text){ return text.split(/\s+/).flatMap(normTok); }
+function lcsHits(tt, hh){
+  const n = tt.length, m = hh.length, hit = new Array(n).fill(false);
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i][j] = tt[i] === hh[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0;
+  while (i < n && j < m){ if (tt[i] === hh[j]){ hit[i] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
+  return hit;
+}
+/* Verde: Google lo entendió a la primera. Ámbar: solo en una segunda opción (dudó). Rojo: no lo entendió. */
+function compare(target, alts){
+  const words = displayWords(target), owner = [], tt = [];
+  words.forEach((w, i) => normTok(w).forEach(t => { tt.push(t); owner.push(i); }));
+  const top = lcsHits(tt, tokensOf(alts[0] || '')), any = top.slice();
+  alts.slice(1).forEach(a => lcsHits(tt, tokensOf(a)).forEach((h, k) => { if (h) any[k] = true; }));
+  const state = words.map(() => 2), counted = words.map(() => false);
+  owner.forEach((o, k) => { counted[o] = true; const v = top[k] ? 2 : any[k] ? 1 : 0; state[o] = Math.min(state[o], v); });
+  const idx = words.map((_, i) => i).filter(i => counted[i]);
+  const pts = idx.reduce((t, i) => t + state[i] / 2, 0);
+  return { words, counted, state, ok: state.map(v => v === 2), maybe: state.map(v => v === 1), score: idx.length ? pts / idx.length : 0 };
+}
+function cleanWord(w){ return w.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g, '').replace(/[’‘]/g, "'"); }
+
+/* ---------- Voz nativa ---------- */
+let voices = [];
+function loadVoices(){ try { voices = speechSynthesis.getVoices(); } catch(e){ voices = []; } }
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(alt){
+  const lang = prefs.accent.toLowerCase();
+  let list = voices.filter(v => v.lang.replace('_', '-').toLowerCase() === lang);
+  if (!list.length) list = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+  list.sort((a, b) => (/google|natural|online/i.test(b.name) ? 1 : 0) - (/google|natural|online/i.test(a.name) ? 1 : 0));
+  return list.length ? list[(alt || 0) % list.length] : null;
+}
+function speak(text, opt = {}){
+  return new Promise(res => {
+    if (!('speechSynthesis' in window)){ res(); return; }
+    try { speechSynthesis.cancel(); } catch(e){}
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice(opt.voice);
+    if (v) u.voice = v;
+    u.lang = prefs.accent; u.rate = opt.rate || prefs.rate; u.pitch = opt.pitch || 1;
+    let done = false; const fin = () => { if (!done){ done = true; res(); } };
+    u.onend = fin; u.onerror = fin;
+    setTimeout(fin, 4000 + text.length * 160 / u.rate);
+    speechSynthesis.speak(u);
+  });
+}
+
+/* ---------- Reconocimiento de voz (Chrome / Google) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) $('noSR').hidden = false;
+function micError(err){
+  const m = $('micMsg');
+  const txt = {
+    'not-allowed': 'No tengo permiso para usar el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono.',
+    'service-not-allowed': 'El reconocimiento de voz está bloqueado en este navegador. Prueba con Chrome.',
+    'network': 'El reconocimiento de voz necesita internet y no hay conexión.',
+    'audio-capture': 'No encuentro el micrófono.'
+  }[err];
+  if (txt){ m.textContent = txt; m.hidden = false; }
+}
+function listen({ continuous = false, onInterim, onEnd }){
+  const r = new SR();
+  r.lang = prefs.accent; r.interimResults = true; r.maxAlternatives = 3; r.continuous = continuous;
+  const finals = []; let error = null;
+  r.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const res = e.results[i];
+      if (res.isFinal) finals.push(Array.from(res).map(a => a.transcript.trim()));
+      else interim += res[0].transcript;
+    }
+    onInterim && onInterim(finals.map(f => f[0]).join(' '), interim);
+  };
+  r.onerror = e => { error = e.error; };
+  r.onend = () => {
+    const alts = [0, 1, 2].map(k => finals.map(f => f[Math.min(k, f.length - 1)]).join(' ').trim()).filter((t, i, a) => t && a.indexOf(t) === i);
+    onEnd && onEnd(alts, error);
+  };
+  try { r.start(); } catch(e){ setTimeout(() => onEnd && onEnd([], 'start')); }
+  return r;
+}
+/* Graba a la vez que transcribe, si el aparato lo permite */
+async function startRecorder(){
+  if (prefs.noRec || !navigator.mediaDevices || !window.MediaRecorder) return null;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mr = new MediaRecorder(stream), chunks = [];
+    mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+    const done = new Promise(res => { mr.onstop = () => { stream.getTracks().forEach(t => t.stop()); res(new Blob(chunks, { type: mr.mimeType })); }; });
+    mr.start();
+    return { stop(){ if (mr.state !== 'inactive') mr.stop(); return done; } };
+  } catch(e){ return null; }
+}
+async function listenAndRecord({ onInterim, onEnd }){
+  const recd = await startRecorder();
+  let retried = false;
+  const go = () => listen({ onInterim, onEnd: async (alts, err) => {
+    if (err === 'audio-capture' && recd && !retried){
+      retried = true; prefs.noRec = true; savePrefs(); await recd.stop();
+      current.r = go(); current.note = 'En este aparato no se puede grabar y transcribir a la vez, así que solo transcribo.';
+      return;
+    }
+    const blob = recd && !retried ? await recd.stop() : null;
+    onEnd(alts, err, blob);
+  } });
+  const current = { r: go(), note: '' };
+  return current;
+}
+
+/* ---------- Pestañas ---------- */
+const TABS = ['texts', 'read', 'dlg', 'words', 'talk'];
+function showTab(name){
+  TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', t === name); $('p-' + t).hidden = t !== name; });
+  try { localStorage.setItem('ingles-tab', name); } catch(e){}
+  if (name === 'read') renderRead();
+  if (name === 'dlg') renderDlg();
+  if (name === 'words') renderWords();
+  if (name === 'talk') renderTalk();
+}
+TABS.forEach(t => $('tab-' + t).onclick = () => showTab(t));
+
+/* ---------- Textos ---------- */
+let curId = null, editId = null;
+const curText = () => S.texts.find(t => t.id === curId) || null;
+function renderTexts(){
+  const box = $('tList'); box.innerHTML = '';
+  if (!S.texts.length) box.innerHTML = '<p class="note">Aún no hay textos. Pulsa «Nuevo texto» y pega un diálogo de tu libro o hazle una foto.</p>';
+  S.texts.forEach(t => {
+    const p = parseText(t.body), n = p.units.length, done = Object.values(t.best || {}).filter(v => v >= 0.8).length;
+    const row = document.createElement('div'); row.className = 'titem';
+    const tt = document.createElement('div'); tt.className = 'tt';
+    tt.innerHTML = '<b>' + esc(t.title) + '</b><span>' + (p.dialogue ? 'Diálogo · ' + speakersOf(p).join(', ') : 'Texto') + ' · ' + n + (n === 1 ? ' frase' : ' frases') + ' · ' + done + ' bien leídas</span>';
+    const read = document.createElement('button'); read.className = 'primary small'; read.textContent = 'Leer';
+    read.onclick = () => { curId = t.id; ri = 0; showTab('read'); };
+    row.append(tt, read);
+    if (p.dialogue){ const d = document.createElement('button'); d.className = 'small'; d.textContent = 'Diálogo'; d.onclick = () => { curId = t.id; showTab('dlg'); }; row.append(d); }
+    const ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Editar';
+    ed.onclick = () => openEditor(t);
+    const del = document.createElement('button'); del.className = 'ghost small'; del.textContent = 'Borrar';
+    del.onclick = () => {
+      if (del.dataset.armed){ S.texts = S.texts.filter(x => x.id !== t.id); if (curId === t.id) curId = null; save('texts'); renderTexts(); return; }
+      del.dataset.armed = '1'; del.textContent = '¿Seguro?'; del.className = 'recbtn small';
+    };
+    row.append(ed, del);
+    box.append(row);
+  });
+}
+function openEditor(t){
+  editId = t ? t.id : null;
+  $('tEditTitle').textContent = t ? 'Editar texto' : 'Nuevo texto';
+  $('tTitle').value = t ? t.title : ''; $('tBody').value = t ? t.body : '';
+  status($('ocrStatus'), '');
+  $('tEdit').hidden = false; $('tTitle').focus();
+}
+$('tNew').onclick = () => openEditor(null);
+$('tCancel').onclick = () => { $('tEdit').hidden = true; };
+$('tSave').onclick = () => {
+  const body = $('tBody').value.trim();
+  if (!body){ status($('ocrStatus'), 'Escribe o pega el texto antes de guardar.', 'err'); return; }
+  const title = $('tTitle').value.trim() || body.split(/\s+/).slice(0, 5).join(' ') + '…';
+  if (editId){ const t = S.texts.find(x => x.id === editId); if (t.body !== body) t.best = {}; t.title = title; t.body = body; }
+  else { const t = { id: Date.now(), title, body, best: {} }; S.texts.unshift(t); curId = t.id; }
+  save('texts'); $('tEdit').hidden = true; renderTexts();
+};
+
+/* Foto → texto (Tesseract.js, se carga solo al usarlo) */
+let tessLoading = null;
+function loadTess(){
+  if (window.Tesseract) return Promise.resolve();
+  if (!tessLoading) tessLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.onload = res; s.onerror = () => { tessLoading = null; rej(); };
+    document.head.append(s);
+  });
+  return tessLoading;
+}
+function tidyOcr(raw){
+  const lines = raw.replace(/-\n(?=[a-z])/g, '').split('\n').map(l => l.replace(/\s+/g, ' ').trim());
+  const out = [];
+  lines.forEach(l => {
+    if (!l){ if (out.length && out[out.length - 1] !== '') out.push(''); return; }
+    const prev = out[out.length - 1];
+    if (SPEAKER.test(l) || prev === undefined || prev === '') out.push(l);
+    else out[out.length - 1] = prev + ' ' + l;
+  });
+  return out.filter((l, i) => l || (i && out[i - 1])).join('\n').replace(/\n{2,}/g, '\n').trim();
+}
+$('tPhoto').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  status($('ocrStatus'), 'Preparando el lector de fotos (la primera vez tarda un poco)…');
+  try {
+    await loadTess();
+    let worker = null, failed = null;
+    const fail = new Promise((_, rej) => { failed = rej; setTimeout(() => rej(new Error('tiempo')), 120000); });
+    const job = (async () => {
+      worker = await Tesseract.createWorker('eng', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') status($('ocrStatus'), 'Leyendo la foto… ' + Math.round(m.progress * 100) + ' %');
+          else if (/load|initializ/.test(m.status || '')) status($('ocrStatus'), 'Preparando el lector de fotos… ' + Math.round((m.progress || 0) * 100) + ' %');
+        },
+        errorHandler: err => failed(err)
+      });
+      return (await worker.recognize(f)).data;
+    })();
+    let data;
+    try { data = await Promise.race([job, fail]); }
+    finally { try { worker && worker.terminate(); } catch(e){} }
+    const txt = tidyOcr(data.text || '');
+    if (!txt){ status($('ocrStatus'), 'No he encontrado texto en la foto. Prueba con más luz y la página recta.', 'err'); return; }
+    $('tBody').value = ($('tBody').value.trim() ? $('tBody').value.trim() + '\n' : '') + txt;
+    status($('ocrStatus'), 'Texto sacado de la foto. Revísalo y corrige lo que haga falta antes de guardar.', 'ok');
+  } catch(err){
+    status($('ocrStatus'), 'No he podido leer la foto. Comprueba la conexión a internet (la primera vez se descarga el lector) y vuelve a probar.', 'err');
+  }
+};
+
+/* Copia de seguridad */
+$('bkDown').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'ingles-en-voz-alta', v: 1, ...S }, null, 1)], { type: 'application/json' });
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'ingles-copia-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  status($('bkStatus'), 'Copia descargada: ' + S.texts.length + ' textos, ' + S.words.length + ' palabras.', 'ok');
+};
+$('bkIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (d.app !== 'ingles-en-voz-alta') throw 0;
+    let nt = 0, nw = 0;
+    (d.texts || []).forEach(t => { if (!S.texts.some(x => x.id === t.id)){ S.texts.push(t); nt++; } });
+    (d.words || []).forEach(w => { if (!S.words.some(x => x.w === w.w)){ S.words.push(w); nw++; } });
+    (d.history || []).forEach(h => { if (!S.history.some(x => x.t === h.t)) S.history.push(h); });
+    S.history.sort((a, b) => a.t - b.t);
+    ['texts', 'words', 'history'].forEach(save);
+    renderTexts(); renderWords();
+    status($('bkStatus'), 'Importado: ' + nt + ' textos y ' + nw + ' palabras nuevas.', 'ok');
+  } catch(err){ status($('bkStatus'), 'Ese archivo no es una copia de esta página.', 'err'); }
+};
+
+/* ---------- Palabras difíciles ---------- */
+function addWord(w, quiet){
+  w = cleanWord(w).toLowerCase();
+  if (!w || w.length < 2 && w !== 'i') return false;
+  const ex = S.words.find(x => x.w === w);
+  if (ex){ if (ex.done){ ex.done = false; ex.streak = 0; save('words'); renderWords(); } return false; }
+  S.words.push({ w, streak: 0, done: false, added: Date.now(), tries: 0 });
+  save('words'); renderWords();
+  return true;
+}
+let wi = 0, wBusy = null;
+function pending(){ return S.words.filter(x => !x.done); }
+function renderWords(){
+  const pend = pending(), done = S.words.filter(x => x.done);
+  $('wcount').textContent = pend.length;
+  const mk = (box, arr, isDone) => {
+    box.innerHTML = '';
+    if (!arr.length){ box.innerHTML = '<span class="note">' + (isDone ? 'Todavía ninguna.' : 'Ninguna por ahora. Las palabras que no se entiendan al leer aparecerán aquí.') + '</span>'; return; }
+    arr.forEach(x => {
+      const c = document.createElement('button'); c.className = 'chip' + (isDone ? ' done' : '');
+      c.innerHTML = esc(x.w) + (isDone ? '' : ' <small>' + x.streak + '/3</small>');
+      c.onclick = () => { if (isDone){ x.done = false; x.streak = 0; save('words'); } wi = pending().indexOf(x); renderWords(); speak(x.w); };
+      box.append(c);
+    });
+  };
+  mk($('wList'), pend, false); mk($('wDone'), done, true);
+  if (wi >= pend.length) wi = 0;
+  const cur = pend[wi];
+  $('wBig').textContent = cur ? cur.w : '¡Nada pendiente!';
+  [...$('wStreak').children].forEach((d, i) => d.classList.toggle('on', !!cur && i < cur.streak));
+  $('wSay').disabled = $('wRec').disabled = !cur || false; $('wNext').disabled = pend.length < 2;
+  if (!SR) $('wRec').disabled = true;
+}
+$('wSay').onclick = () => { const c = pending()[wi]; if (c) speak(c.w); };
+$('wNext').onclick = () => { wi = (wi + 1) % Math.max(1, pending().length); $('wHeard').textContent = ''; renderWords(); };
+$('wAddBtn').onclick = () => { const v = $('wAddIn').value.trim(); if (v){ addWord(v); $('wAddIn').value = ''; } };
+$('wAddIn').onkeydown = e => { if (e.key === 'Enter') $('wAddBtn').click(); };
+$('wRec').onclick = () => {
+  if (wBusy){ wBusy.stop(); return; }
+  const cur = pending()[wi]; if (!cur) return;
+  $('wRec').classList.add('on'); $('wRec').textContent = '■ Parar'; $('wHeard').textContent = 'Te escucho…';
+  wBusy = listen({ onInterim: (f, i) => { $('wHeard').textContent = (f + ' ' + i).trim(); }, onEnd: (alts, err) => {
+    wBusy = null; $('wRec').classList.remove('on'); $('wRec').textContent = '🎤 Decirla';
+    if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+    if (!alts.length){ $('wHeard').textContent = 'No he oído nada. Prueba otra vez, un poco más cerca del micro.'; return; }
+    const target = tokensOf(cur.w), okk = alts.some(a => { const h = tokensOf(a).join(' '); return (' ' + h + ' ').includes(' ' + target.join(' ') + ' '); });
+    cur.tries++;
+    if (okk){
+      cur.streak++;
+      if (cur.streak >= 3){ cur.done = true; $('wHeard').innerHTML = '¡Dominada! 🎉 He entendido <b>' + esc(alts[0]) + '</b>'; }
+      else $('wHeard').innerHTML = '¡Bien! He entendido <b>' + esc(alts[0]) + '</b>';
+    } else { cur.streak = 0; $('wHeard').innerHTML = 'He entendido <b>' + esc(alts[0]) + '</b>. Escucha la nativa y repite.'; }
+    save('words');
+    if (cur.done) setTimeout(() => { $('wHeard').textContent = ''; renderWords(); }, 1400); else renderWords();
+  } });
+};
+
+/* ---------- Leer ---------- */
+let ri = 0, rBusy = null, rLast = null, rUrl = null, selWord = null;
+function sentenceHTML(text, res){
+  return displayWords(text).map((w, i) => {
+    const cls = res && res.counted[i] ? (res.ok[i] ? ' good' : res.maybe[i] ? ' maybe' : ' bad') : '';
+    return '<span class="w' + cls + '" tabindex="0" data-i="' + i + '">' + esc(w) + '</span>';
+  }).join(' ');
+}
+function bindWords(box, text){
+  const ws = displayWords(text);
+  box.querySelectorAll('.w').forEach(el => {
+    const act = () => {
+      box.querySelectorAll('.w.sel').forEach(x => x.classList.remove('sel'));
+      el.classList.add('sel');
+      selWord = cleanWord(ws[+el.dataset.i]);
+      $('wbWord').textContent = selWord; $('wordBar').hidden = !selWord;
+      $('wbAdd').textContent = '+ A palabras difíciles'; $('wbAdd').disabled = false;
+      speak(selWord);
+    };
+    el.onclick = act; el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); act(); } };
+  });
+}
+$('wbSay').onclick = () => selWord && speak(selWord);
+$('wbAdd').onclick = () => { if (!selWord) return; const added = addWord(selWord); $('wbAdd').textContent = added ? '✓ Añadida' : '✓ Ya estaba'; $('wbAdd').disabled = true; };
+function renderRead(){
+  const t = curText();
+  $('wordBar').hidden = true; selWord = null;
+  if (!t){
+    $('rTitle').textContent = 'Elige un texto en «Textos»'; $('rSentence').textContent = ''; $('rList').innerHTML = '';
+    $('rProg').textContent = ''; $('rSpeaker').hidden = true; $('rResult').hidden = true; $('rHeard').textContent = '';
+    ['rListen', 'rRec', 'rPrev', 'rNext', 'rMine'].forEach(id => $(id).disabled = true);
+    return;
+  }
+  const p = parseText(t.body), u = p.units;
+  if (!u.length){ $('rTitle').textContent = t.title + ' (vacío)'; return; }
+  if (ri >= u.length) ri = 0;
+  const unit = u[ri];
+  $('rTitle').textContent = t.title;
+  const good = Object.values(t.best || {}).filter(v => v >= 0.8).length;
+  $('rProg').textContent = good + ' de ' + u.length + ' bien leídas'; $('rProg').className = 'pill' + (good ? '' : ' none');
+  $('rSpeaker').hidden = !unit.speaker; $('rSpeaker').textContent = unit.speaker || '';
+  const res = rLast && rLast.ri === ri && rLast.id === t.id ? rLast.res : null;
+  $('rSentence').innerHTML = sentenceHTML(unit.text, res); bindWords($('rSentence'), unit.text);
+  if (!res){ $('rResult').hidden = true; $('rHeard').textContent = ''; }
+  $('rListen').disabled = false; $('rRec').disabled = !SR;
+  $('rPrev').disabled = ri === 0; $('rNext').disabled = ri === u.length - 1;
+  $('rMine').disabled = !(rUrl && rLast && rLast.ri === ri && rLast.id === t.id);
+  const list = $('rList'); list.innerHTML = '';
+  u.forEach((x, i) => {
+    const b = document.createElement('button'); b.className = 'sitem' + (i === ri ? ' cur' : '');
+    const sc = t.best && t.best[i] != null ? Math.round(t.best[i] * 100) + ' %' : '';
+    b.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="st">' + (x.speaker ? '<b>' + esc(x.speaker) + ':</b> ' : '') + esc(x.text) + '</span><span class="sc" style="color:' + (t.best && t.best[i] >= 0.8 ? 'var(--ok)' : 'var(--muted)') + '">' + sc + '</span>';
+    b.onclick = () => { ri = i; rLast = null; renderRead(); };
+    list.append(b);
+  });
+}
+$('rPrev').onclick = () => { ri--; rLast = null; renderRead(); };
+$('rNext').onclick = () => { ri++; rLast = null; renderRead(); };
+$('rListen').onclick = () => { const t = curText(); if (t) speak(parseText(t.body).units[ri].text); };
+$('rMine').onclick = () => { if (rUrl) new Audio(rUrl).play(); };
+let rStarting = false;
+$('rRec').onclick = async () => {
+  if (rBusy){ rBusy.r.stop(); return; }
+  if (rStarting) return;
+  const t = curText(); if (!t) return;
+  rStarting = true;
+  const unit = parseText(t.body).units[ri], myRi = ri, myId = t.id;
+  try { speechSynthesis.cancel(); } catch(e){}
+  $('rRec').classList.add('on'); $('rRec').textContent = '■ Parar'; $('rResult').hidden = true;
+  $('rHeard').textContent = 'Te escucho… lee la frase.';
+  rBusy = await listenAndRecord({
+    onInterim: (f, i) => { $('rHeard').innerHTML = 'Entiendo: <b>' + esc((f + ' ' + i).trim()) + '</b>'; },
+    onEnd: (alts, err, blob) => {
+      const note = rBusy && rBusy.note; rBusy = null;
+      $('rRec').classList.remove('on'); $('rRec').textContent = '🎤 Leer en voz alta';
+      if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+      if (blob){ if (rUrl) URL.revokeObjectURL(rUrl); rUrl = URL.createObjectURL(blob); }
+      if (!alts.length){ $('rHeard').textContent = 'No he oído nada. Pulsa otra vez y lee la frase en voz alta.'; return; }
+      const res = compare(unit.text, alts);
+      rLast = { ri: myRi, id: myId, res };
+      t.best = t.best || {}; t.best[myRi] = Math.max(t.best[myRi] || 0, res.score); save('texts');
+      const bad = res.words.filter((w, i) => res.counted[i] && !res.ok[i] && !res.maybe[i]).map(cleanWord);
+      let added = 0; bad.forEach(w => { if (w.length > 2 && addWord(w, true)) added++; });
+      renderRead();
+      $('rHeard').innerHTML = 'He entendido: <b>' + esc(alts[0]) + '</b>';
+      $('rResult').hidden = false;
+      $('rScore').textContent = Math.round(res.score * 100) + ' %';
+      $('rScore').style.color = res.score >= 0.8 ? 'var(--ok)' : res.score >= 0.5 ? 'var(--ink)' : 'var(--rec)';
+      $('rScoreTxt').textContent = (res.score >= 0.95 ? '¡Perfecta! Se te entiende todo.' : res.score >= 0.8 ? 'Muy bien. Repasa las palabras en rojo o ámbar.' : res.score >= 0.5 ? 'Se entiende a medias. Escucha la voz nativa y repite.' : 'Cuesta entenderla. Escucha la voz nativa, más despacio, y repite.')
+        + (added ? ' ' + added + (added === 1 ? ' palabra nueva' : ' palabras nuevas') + ' en tu lista.' : '') + (note ? ' ' + note : '');
+    }
+  });
+  rStarting = false;
+};
+
+/* ---------- Diálogo ---------- */
+let dRun = null;
+function renderDlg(){
+  const t = curText();
+  $('dTitle').textContent = t ? t.title : 'Elige un diálogo en «Textos»';
+  const p = t ? parseText(t.body) : null;
+  $('dNone').hidden = !(t && !p.dialogue); $('dBox').hidden = !(p && p.dialogue);
+  if (!p || !p.dialogue) return;
+  const sp = speakersOf(p), sel = $('dRole'), prev = sel.value;
+  sel.innerHTML = sp.map(s => '<option>' + esc(s) + '</option>').join('');
+  sel.value = sp.includes(prev) ? prev : sp[sp.length > 1 ? 1 : 0];
+  $('dHide').checked = prefs.hide;
+  if (!dRun) drawLog(p, -1, {});
+}
+function drawLog(p, now, results){
+  const me = $('dRole').value, hide = $('dHide').checked, log = $('dLog'); log.innerHTML = '';
+  p.units.forEach((u, i) => {
+    if (dRun && now >= 0 && i > now) return;
+    const mine = u.speaker === me, b = document.createElement('div');
+    b.className = 'bubble' + (mine ? ' me' : '') + (i === now ? ' now' : '');
+    const res = results[i];
+    const txt = res ? sentenceHTML(u.text, res) : esc(u.text);
+    b.innerHTML = '<span class="speaker">' + esc(u.speaker) + (res ? ' · ' + Math.round(res.score * 100) + ' %' : '') + '</span><div class="txt' + (mine && hide && !res && dRun ? ' hid' : '') + '">' + txt + '</div>';
+    log.append(b);
+  });
+  const cur = log.querySelector('.now'); if (cur) cur.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+$('dHide').onchange = () => { prefs.hide = $('dHide').checked; savePrefs(); const t = curText(); if (t && !dRun) drawLog(parseText(t.body), -1, {}); };
+$('dRole').onchange = () => { const t = curText(); if (t && !dRun) drawLog(parseText(t.body), -1, {}); };
+function waitMs(ms){ return new Promise(r => setTimeout(r, ms)); }
+async function runDialogue(fromIdx){
+  const t = curText(); if (!t) return;
+  const p = parseText(t.body), me = $('dRole').value, others = speakersOf(p).filter(s => s !== me);
+  const run = dRun = { stop: false, results: dRun ? dRun.results : {}, i: fromIdx, r: null };
+  $('dStart').disabled = true; $('dStop').disabled = false; $('dRetry').disabled = true;
+  for (let i = fromIdx; i < p.units.length; i++){
+    if (run.stop) break;
+    run.i = i;
+    const u = p.units[i];
+    drawLog(p, i, run.results);
+    if (u.speaker !== me){
+      status($('dStatus'), u.speaker + ' habla…');
+      const k = others.indexOf(u.speaker);
+      await speak(u.text, { voice: k + 1, pitch: k % 2 ? 0.85 : 1.05 });
+      await waitMs(250);
+      continue;
+    }
+    status($('dStatus'), 'Tu turno: di tu frase.');
+    const res = await new Promise(resolve => {
+      run.r = listen({ onInterim: (f, it) => status($('dStatus'), 'Entiendo: ' + (f + ' ' + it).trim()), onEnd: (alts, err) => {
+        run.r = null;
+        if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+        resolve(alts.length ? compare(u.text, alts) : null);
+      } });
+    });
+    if (run.stop) break;
+    if (!res){ status($('dStatus'), 'No te he oído. Pulsa «Repetir mi frase» o «Parar».'); $('dRetry').disabled = false; $('dStart').disabled = true; run.paused = i; return; }
+    run.results[i] = res;
+    res.words.forEach((w, j) => { if (res.counted[j] && !res.ok[j] && !res.maybe[j] && cleanWord(w).length > 2) addWord(w, true); });
+    drawLog(p, i, run.results);
+    $('dRetry').disabled = false;
+    await waitMs(res.score >= 0.8 ? 700 : 1400);
+  }
+  if (!run.stop && dRun === run){
+    const scores = Object.values(run.results).map(r => r.score);
+    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    status($('dStatus'), '¡Diálogo terminado! Media de tus frases: ' + Math.round(avg * 100) + ' %.', 'ok');
+    drawLog(p, -1, run.results);
+  }
+  if (dRun === run){ dRun = null; $('dStart').disabled = false; $('dStop').disabled = true; $('dStart').textContent = '▶ Empezar de nuevo'; }
+}
+$('dStart').onclick = () => { dRun = null; runDialogue(0); };
+$('dStop').onclick = () => {
+  if (dRun){ dRun.stop = true; if (dRun.r) dRun.r.abort(); }
+  try { speechSynthesis.cancel(); } catch(e){}
+  dRun = null; $('dStart').disabled = false; $('dStop').disabled = true; $('dRetry').disabled = true;
+  status($('dStatus'), 'Diálogo parado.');
+};
+$('dRetry').onclick = () => {
+  const t = curText(); if (!t) return;
+  const p = parseText(t.body), me = $('dRole').value, prevRun = dRun;
+  let i = prevRun ? (prevRun.paused != null ? prevRun.paused : prevRun.i) : -1;
+  if (prevRun){ prevRun.stop = true; if (prevRun.r) prevRun.r.abort(); }
+  try { speechSynthesis.cancel(); } catch(e){}
+  while (i >= 0 && p.units[i].speaker !== me) i--;
+  if (i < 0) return;
+  const keep = prevRun && prevRun.results ? prevRun.results : {};
+  delete keep[i];
+  dRun = { results: keep };
+  setTimeout(() => runDialogue(i), 150);
+};
+
+/* ---------- Hablar ---------- */
+const TOPICS = [
+  ['Describe your perfect weekend.', 'Describe tu fin de semana perfecto.'],
+  ['Talk about your city and what you like about it.', 'Habla de tu ciudad y de lo que te gusta de ella.'],
+  ['What did you do yesterday?', '¿Qué hiciste ayer?'],
+  ['Describe your daily routine.', 'Describe tu rutina diaria.'],
+  ['Talk about your favourite food and how to cook it.', 'Habla de tu comida favorita y de cómo se prepara.'],
+  ['Describe a trip you remember well.', 'Describe un viaje que recuerdes bien.'],
+  ['What are your plans for next summer?', '¿Qué planes tienes para el próximo verano?'],
+  ['Talk about a hobby you enjoy.', 'Habla de una afición que disfrutes.'],
+  ['Describe your home.', 'Describe tu casa.'],
+  ['Talk about a film or series you like.', 'Habla de una película o serie que te guste.'],
+  ['What would you do if you won the lottery?', '¿Qué harías si te tocara la lotería?'],
+  ['Talk about your job or what you do during the day.', 'Habla de tu trabajo o de lo que haces durante el día.'],
+  ['Describe a person who is important to you.', 'Describe a una persona importante para ti.'],
+  ['Why do you want to speak English?', '¿Por qué quieres hablar inglés?'],
+  ['Talk about the weather today and what you like to do when it rains.', 'Habla del tiempo de hoy y de lo que te gusta hacer cuando llueve.'],
+  ['Describe your favourite place to relax.', 'Describe tu lugar favorito para relajarte.'],
+  ['Explain how to get from your home to the nearest supermarket.', 'Explica cómo ir de tu casa al supermercado más cercano.'],
+  ['Talk about technology you use every day.', 'Habla de la tecnología que usas cada día.'],
+  ['What did you eat today?', '¿Qué has comido hoy?'],
+  ['Describe your best friend.', 'Describe a tu mejor amigo o amiga.'],
+  ['Talk about something you learned recently.', 'Habla de algo que hayas aprendido hace poco.'],
+  ['What is your favourite season and why?', '¿Cuál es tu estación favorita y por qué?'],
+  ['Order a meal in a restaurant, playing both the waiter and yourself.', 'Pide comida en un restaurante haciendo de camarero y de cliente.'],
+  ['Talk about a problem you solved and how you did it.', 'Habla de un problema que resolviste y de cómo lo hiciste.'],
+  ['Describe what you can see from your window.', 'Describe lo que ves desde tu ventana.']
+];
+let ki = Math.floor(Math.random() * TOPICS.length), kRun = null;
+function renderTalk(){
+  $('kTopic').textContent = TOPICS[ki][0]; $('kTopicEs').textContent = TOPICS[ki][1];
+  if (!kRun) $('kTimer').textContent = clock(+$('kDur').value);
+  $('kGo').disabled = !SR;
+  const box = $('kHist'), last = S.history.slice(-10);
+  box.innerHTML = '';
+  if (!last.length){ box.innerHTML = '<p class="note">Aquí verás tus palabras por minuto en cada sesión.</p>'; return; }
+  const max = Math.max(60, ...last.map(h => h.wpm));
+  last.forEach(h => {
+    const r = document.createElement('div'); r.className = 'hrow';
+    const d = new Date(h.t);
+    r.innerHTML = '<span>' + d.getDate() + '/' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</span><div class="bar" style="width:' + Math.max(3, h.wpm / max * 100) + '%"></div><span>' + Math.round(h.wpm) + ' ppm</span>';
+    box.append(r);
+  });
+}
+function clock(s){ s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+$('kNew').onclick = () => { if (kRun) return; ki = (ki + 1 + Math.floor(Math.random() * (TOPICS.length - 1))) % TOPICS.length; renderTalk(); };
+$('kDur').onchange = () => { if (!kRun) $('kTimer').textContent = clock(+$('kDur').value); };
+function countWords(t){ return t.split(/\s+/).filter(w => /[a-z0-9]/i.test(w)); }
+$('kGo').onclick = () => {
+  if (kRun){ kRun.end(); return; }
+  try { speechSynthesis.cancel(); } catch(e){}
+  const dur = +$('kDur').value, t0 = performance.now();
+  let text = '', interim = '', r = null, tick = 0;
+  const show = () => { $('kLive').innerHTML = esc(text) + ' <span class="interim">' + esc(interim) + '</span>'; };
+  const start = () => {
+    r = listen({ continuous: true, onInterim: (f, i) => { interim = (f + ' ' + i).trim(); show(); }, onEnd: (alts, err) => {
+      if (alts[0]) text = (text + ' ' + alts[0]).trim();
+      interim = ''; show();
+      if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+      if (kRun && !kRun.over && err !== 'not-allowed' && err !== 'service-not-allowed') start();
+      else if (kRun && !kRun.over) kRun.end();
+      else if (kRun && kRun.over) finish();
+    } });
+  };
+  const finish = () => {
+    if (!kRun) return;
+    clearInterval(tick); kRun = null;
+    $('kGo').classList.remove('on'); $('kGo').textContent = '🎤 Empezar a hablar';
+    const secs = Math.min(dur, (performance.now() - t0) / 1000), ws = countWords(text);
+    const wpm = secs > 5 ? ws.length / (secs / 60) : 0, uniq = new Set(ws.map(w => w.toLowerCase().replace(/[^a-z']/g, ''))).size;
+    $('kStats').hidden = false; $('kWords').textContent = ws.length; $('kWpm').textContent = Math.round(wpm); $('kUniq').textContent = uniq;
+    if (!text) $('kLive').innerHTML = '<span class="interim">No he captado nada. Comprueba el micrófono y vuelve a probar.</span>';
+    if (ws.length){ S.history.push({ t: Date.now(), secs: Math.round(secs), words: ws.length, wpm, uniq, topic: TOPICS[ki][0] }); save('history'); }
+    renderTalk();
+  };
+  kRun = { over: false, end(){ this.over = true; try { r && r.stop(); } catch(e){} setTimeout(() => finish(), 1500); } };
+  $('kGo').classList.add('on'); $('kGo').textContent = '■ Terminar'; $('kStats').hidden = true;
+  $('kLive').innerHTML = '<span class="interim">Te escucho… habla sin parar, aunque te equivoques.</span>';
+  tick = setInterval(() => { const left = dur - (performance.now() - t0) / 1000; $('kTimer').textContent = clock(left); if (left <= 0 && kRun && !kRun.over) kRun.end(); }, 250);
+  start();
+};
+
+/* ---------- Ajustes y arranque ---------- */
+$('accent').onchange = () => { prefs.accent = $('accent').value; savePrefs(); };
+$('rate').oninput = () => { prefs.rate = +$('rate').value; $('rateo').textContent = fmt(prefs.rate, 2).replace(/0$/, '') + '×'; savePrefs(); };
+const SAMPLE = { id: 1, title: 'Ejemplo · At the café', best: {}, body: 'Anna: Good morning! Can I have a coffee, please?\nWaiter: Of course. Would you like milk with it?\nAnna: Yes, just a little. And a croissant, please.\nWaiter: Here you are. Anything else?\nAnna: No, that\'s all, thanks. Have a nice day!\nWaiter: You too. See you soon!' };
+(async () => {
+  loadPrefs();
+  $('accent').value = prefs.accent; $('rate').value = prefs.rate; $('rateo').textContent = fmt(prefs.rate, 2).replace(/0$/, '') + '×';
+  db = await openDB();
+  const [t, w, h] = await Promise.all([load('texts'), load('words'), load('history')]);
+  S.texts = t || [SAMPLE]; S.words = w || []; S.history = h || [];
+  if (!t) save('texts');
+  curId = S.texts.length ? S.texts[0].id : null;
+  renderTexts(); renderWords();
+  let tab = 'texts'; try { tab = localStorage.getItem('ingles-tab') || 'texts'; } catch(e){}
+  showTab(TABS.includes(tab) ? tab : 'texts');
+})();
+})();
+</script>
+</body>
+</html>
