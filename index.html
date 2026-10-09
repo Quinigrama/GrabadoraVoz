@@ -93,6 +93,12 @@ canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--b
 .pick input{accent-color:var(--accent);width:16px;height:16px;margin:0}
 .pick.on{border-color:var(--accent);background:var(--accent-soft)}
 .pick small{font:500 11px var(--body);color:var(--muted);padding-right:8px}
+.pick.doubt{border-style:dashed;border-color:var(--rec)}
+.pick .warn{color:var(--rec);font-weight:600}
+.rword .cutbtn{font:500 13px var(--body);padding:7px 10px;margin-left:auto}
+.editbox{display:grid;gap:10px;padding:12px;border:1.5px solid var(--accent);border-radius:10px;margin-top:12px}
+.editbox canvas{height:150px;touch-action:none;cursor:ew-resize}
+#gEditSyl button{font:600 14px var(--mono)}
 
 .studio{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
 @media (max-width:520px){.studio{grid-template-columns:1fr}}
@@ -202,7 +208,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     </div>
     <p class="sentence" id="gSentence"></p>
     <div class="sylhint" id="gSyl"></div>
-    <p class="note">Léela como si dictaras: <b>palabra a palabra, con una pausa corta entre cada una</b>, en tu tono normal. Sin prisa; la grabación se para sola a los 30 segundos o cuando pulses Parar.</p>
+    <p class="note">Léela como si dictaras: <b>palabra a palabra, con una pausa corta entre cada una</b>, en tu tono normal. Di cada palabra <b>entera y de un tirón</b>, sin separarla en sílabas, sin alargar la última y sin pegarla a la siguiente. En el karaoke no hace falta ir clavado al tiempo: la app busca los silencios entre palabras, así que es mejor un hueco claro que ir deprisa.</p>
     <label class="check" for="kOn"><input type="checkbox" id="kOn" checked> Modo karaoke: te enseño las palabras una a una, a tu ritmo</label>
     <label class="check" for="natG"><input type="checkbox" id="natG" class="natural" checked> Grabación natural: sin los filtros del navegador (recomendado en un sitio tranquilo)</label>
     <div class="sliders" id="kBox">
@@ -222,8 +228,14 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="status" id="gStatus">Graba o sube la lectura de esta frase.</div>
     <div id="gReviewBox" hidden>
       <div class="label" style="margin-bottom:8px">Revisa los cortes</div>
-      <p class="note" style="margin-bottom:10px">Toca una sílaba para oírla. Las marcadas se guardarán: las nuevas entran en tu banco y las que ya tenías se añaden como otra versión, para que la app elija la que mejor encaje al leer. Desmarca las que estén mal cortadas.</p>
+      <p class="note" style="margin-bottom:10px">Toca una sílaba para oírla. Las marcadas se guardarán: las nuevas entran en tu banco y las que ya tenías se añaden como otra versión. Las que tienen el borde rojo discontinuo (⚠) son cortes dudosos y van desmarcadas: oye la sílaba y, si está mal, pulsa ✂ Ajustar en esa palabra para mover el corte con el dedo.</p>
       <div class="review" id="gReview"></div>
+      <div class="editbox" id="gEditBox" hidden>
+        <div class="row between"><span class="label">Ajusta los cortes de «<span id="gEditWord"></span>»</span><button class="primary" id="gEditClose">Listo</button></div>
+        <p class="note">Arrastra las líneas rojas hasta el hueco o el cambio de sonido entre sílabas. Al soltar suena la sílaba que empieza ahí. Toca abajo cada sílaba para comprobarla.</p>
+        <canvas id="gEdit" aria-label="Palabra ampliada con los cortes de sus sílabas"></canvas>
+        <div class="row" id="gEditSyl"></div>
+      </div>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="gSave">Guardar</button>
         <button class="ghost" id="gDiscard">Descartar</button>
@@ -738,31 +750,91 @@ function segmentWords(d, sr, nWords){
   });
   return { segs, ok: valid.length > 0, found: chosen.length };
 }
-function splitSyllables(d, sr, k){
-  if (k <= 1) return [[0, d.length]];
-  const hop = Math.max(1, Math.floor(sr * 0.005));
-  const raw = frameRms(d, hop);
-  const env = raw.map((_, i) => { let s = 0, n = 0; for (let j = i - 2; j <= i + 2; j++) if (j >= 0 && j < raw.length){ s += raw[j]; n++; } return s / n; });
-  const mx = Math.max(...env);
-  const peaks = [];
-  for (let i = 1; i < env.length - 1; i++) if (env[i] >= env[i-1] && env[i] > env[i+1] && env[i] > mx * 0.15) peaks.push(i);
-  peaks.sort((a, b) => env[b] - env[a]);
-  const take = [];
-  const minDist = Math.floor(0.07 / 0.005);
-  for (const p of peaks){ if (take.every(t => Math.abs(t - p) >= minDist)) take.push(p); if (take.length === k) break; }
-  if (take.length < k){
-    const step = d.length / k;
-    return Array.from({ length: k }, (_, i) => [Math.floor(i * step), Math.floor((i + 1) * step)]);
+function biquad(d, sr, type, f0, Q){
+  const w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * Q);
+  let b0, b1, b2;
+  if (type === 'bp'){ b0 = al; b1 = 0; b2 = -al; }
+  else { b0 = (1 + c) / 2; b1 = -(1 + c); b2 = (1 + c) / 2; }
+  const a0 = 1 + al, a1 = -2 * c, a2 = 1 - al;
+  const o = new Float32Array(d.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < d.length; i++){
+    const x = d[i], y = (b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+    o[i] = y; x2 = x1; x1 = x; y2 = y1; y1 = y;
   }
-  take.sort((a, b) => a - b);
-  const cuts = [0];
-  for (let i = 0; i < k - 1; i++){
-    let m = take[i];
-    for (let j = take[i]; j <= take[i+1]; j++) if (env[j] < env[m]) m = j;
-    cuts.push(m * hop);
+  return o;
+}
+/* "Vocalidad" de cada trozo de 5 ms: energía en la zona de las vocales (300-2500 Hz),
+   rebajada cuando domina el siseo agudo (s, z, f, j...). */
+const VP = { f: 700, q: 0.5, h: 3, dw: 3, th: 0.25 };
+function vowelCurve(d, sr){
+  const hop = Math.max(1, Math.floor(sr * 0.005)), win = hop * 4;
+  const band = biquad(biquad(d, sr, 'bp', VP.f, VP.q), sr, 'bp', VP.f, VP.q);
+  const hi = biquad(d, sr, 'hp', 3200, 0.7);
+  const n = Math.max(1, Math.ceil(d.length / hop)), v = new Float32Array(n);
+  for (let f = 0; f < n; f++){
+    const c = f * hop + hop / 2, a = Math.max(0, Math.floor(c - win / 2)), b = Math.min(d.length, Math.floor(c + win / 2));
+    let eb = 0, eh = 0;
+    for (let i = a; i < b; i++){ eb += band[i] * band[i]; eh += hi[i] * hi[i]; }
+    const L = Math.max(1, b - a); eb = Math.sqrt(eb / L); eh = Math.sqrt(eh / L);
+    v[f] = Math.sqrt(eb * eb * eb / (eb * eb + VP.h * eh * eh + 1e-12));
+  }
+  const s = new Float32Array(n);
+  for (let f = 0; f < n; f++){ let t = 0, k = 0; for (let j = f - 3; j <= f + 3; j++) if (j >= 0 && j < n){ t += v[j]; k++; } s[f] = t / k; }
+  return { v: s, hop };
+}
+function consCount(syl, end){
+  const u = syl.replace(/ch|rr|ll|qu/g, 'C');
+  const m = end ? u.match(/[^aeiouáéíóú]*$/) : u.match(/^[^aeiouáéíóú]*/);
+  return m ? m[0].length : 0;
+}
+/* Devuelve los cortes de una palabra en sus sílabas y, para cada sílaba, si el corte es fiable. */
+function splitSyllables(d, sr, sylls){
+  const k = sylls.length;
+  if (k <= 1) return { ranges: [[0, d.length]], sure: [true] };
+  const { v, hop } = vowelCurve(d, sr), n = v.length;
+  let mx = 0; for (const x of v) mx = Math.max(mx, x);
+  const even = () => ({ ranges: Array.from({ length: k }, (_, i) => [Math.floor(i * d.length / k), Math.floor((i + 1) * d.length / k)]), sure: Array(k).fill(false) });
+  if (!mx) return even();
+  const M = [];
+  for (let i = 1; i < n - 1; i++) if (v[i] >= v[i-1] && v[i] > v[i+1] && v[i] > mx * 0.12) M.push(i);
+  if (M.length < k) return even();
+  const minD = Math.round(0.05 * sr / hop);
+  const dipMin = (a, b) => { let m = a; for (let j = a; j <= b; j++) if (v[j] < v[m]) m = j; return m; };
+  /* Programación dinámica: k picos ordenados con buena altura y valles claros entre ellos */
+  const L = M.length, NEG = -1e9;
+  const S = Array.from({ length: k }, () => new Float64Array(L).fill(NEG)), P = Array.from({ length: k }, () => new Int32Array(L).fill(-1));
+  for (let a = 0; a < L; a++) S[0][a] = v[M[a]] / mx;
+  for (let j = 1; j < k; j++) for (let b = 0; b < L; b++) for (let a = 0; a < b; a++){
+    if (S[j-1][a] <= NEG / 2 || M[b] - M[a] < minD) continue;
+    const m = dipMin(M[a], M[b]), dip = (Math.min(v[M[a]], v[M[b]]) - v[m]) / mx;
+    const sc = S[j-1][a] + v[M[b]] / mx + VP.dw * dip;
+    if (sc > S[j][b]){ S[j][b] = sc; P[j][b] = a; }
+  }
+  let bi = -1, bs = NEG;
+  for (let b = 0; b < L; b++) if (S[k-1][b] > bs){ bs = S[k-1][b]; bi = b; }
+  if (bi < 0) return even();
+  const pk = [];
+  for (let j = k - 1; j >= 0; j--){ pk.unshift(M[bi]); bi = P[j][bi]; }
+  /* Corte según la fonética: la consonante va con la sílaba que la lleva escrita */
+  const cuts = [0], sure = Array(k).fill(true);
+  for (let j = 0; j < k - 1; j++){
+    const a = pk[j], b = pk[j+1], m = dipMin(a, b), base = v[m];
+    let off = a; while (off < m && v[off] > base + VP.th * (v[a] - base)) off++;
+    let on = b; while (on > m && v[on] > base + VP.th * (v[b] - base)) on--;
+    const nc = consCount(sylls[j], true), no = consCount(sylls[j+1], false);
+    let c;
+    if (nc + no === 0) c = m;
+    else c = off + (on - off) * nc / (nc + no);
+    if (no > 0 && nc === 0) c = Math.max(a, c - 1);
+    cuts.push(Math.round(c * hop));
+    const depth = (Math.min(v[a], v[b]) - base) / Math.min(v[a], v[b]);
+    if (depth < 0.2){ sure[j] = false; sure[j+1] = false; }
   }
   cuts.push(d.length);
-  return cuts.slice(0, -1).map((c, i) => [c, cuts[i+1]]);
+  const ranges = cuts.slice(0, -1).map((c, i) => [c, cuts[i+1]]);
+  ranges.forEach(([s, e], i) => { const t = (e - s) / sr; if (t < 0.06 || t > 0.8) sure[i] = false; });
+  return { ranges, sure };
 }
 
 function segmentByTiming(d, sr, times, n){
@@ -1306,7 +1378,7 @@ function drawG(){
   gTake.words.forEach(w => w.sylRanges.slice(1).forEach(r => lines.push(w.start + r[0])));
   drawWave($('gWave'), gTake.data, { regions: gTake.words.map(w => [w.start, w.end]), lines });
 }
-function goTo(i){ gi = Math.max(0, Math.min(FRASES.length - 1, i)); gTake = null; $('gReviewBox').hidden = true; drawG(); status($('gStatus'), 'Graba o sube la lectura de esta frase.'); renderGuided(); }
+function goTo(i){ gi = Math.max(0, Math.min(FRASES.length - 1, i)); gTake = null; $('gReviewBox').hidden = true; closeEdit(); drawG(); status($('gStatus'), 'Graba o sube la lectura de esta frase.'); renderGuided(); }
 function bestSentence(){
   let best = gi, bs = -1;
   FR.forEach((_, i) => { const n = newCount(i); if (n > bs){ bs = n; best = i; } });
@@ -1336,10 +1408,12 @@ async function processTake(blob, times){
   }
   gTake = { data, sr, ok: true, words: segs.map(([a, b], i) => {
     const seg = data.subarray(a, b);
-    return { start: a, end: b, word: ws[i], sylRanges: splitSyllables(seg, sr, ws[i].syl.length) };
+    const sp = splitSyllables(seg, sr, ws[i].syl);
+    return { start: a, end: b, word: ws[i], sylRanges: sp.ranges, sure: sp.sure };
   }) };
-  drawG(); renderGuided(); renderReview();
-  status($('gStatus'), 'He encontrado las ' + ws.length + ' palabras' + (viaTiming ? ' guiándome por el ritmo del karaoke' : '') + '. Revisa los cortes y guarda.', 'ok');
+  closeEdit(); drawG(); renderGuided(); renderReview();
+  const nd = gTake.words.reduce((t, w) => t + w.sure.filter(x => !x).length, 0);
+  status($('gStatus'), 'He encontrado las ' + ws.length + ' palabras' + (viaTiming ? ' guiándome por el ritmo del karaoke' : '') + '. ' + (nd ? nd + (nd === 1 ? ' sílaba tiene' : ' sílabas tienen') + ' un corte dudoso (⚠): revísalas o ajústalas con ✂. ' : 'Todos los cortes parecen limpios. ') + 'Revisa y guarda.', 'ok');
 }
 function sylAudio(w, j){
   const [a, b] = w.sylRanges[j];
@@ -1355,10 +1429,11 @@ function renderReview(){
     const wb = document.createElement('button'); wb.className = 'wbtn'; wb.textContent = '▶ ' + w.word.word;
     wb.onclick = () => playData(finish(gTake.data.slice(w.start, w.end), gTake.sr));
     row.append(wb);
+    w.els = [];
     w.picks = w.word.syl.map((s, j) => {
       const exists = clips.has(s), dup = seen.has(s), full = nVers(s) >= MAX_VERS; seen.add(s);
-      const on = !dup && !full;
-      const p = document.createElement('span'); p.className = 'pick' + (on ? ' on' : '');
+      const sure = !w.sure || w.sure[j] !== false, elig = !dup && !full, on = elig && sure;
+      const p = document.createElement('span'); p.className = 'pick' + (on ? ' on' : '') + (sure ? '' : ' doubt');
       const b = document.createElement('button'); b.textContent = s; b.onclick = () => playData(sylAudio(w, j));
       const lab = document.createElement('label');
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = on; cb.id = 'pk-' + gi + '-' + s + '-' + j + '-' + w.start;
@@ -1366,9 +1441,17 @@ function renderReview(){
       cb.onchange = () => { p.classList.toggle('on', cb.checked); updateSaveBtn(); };
       lab.append(cb); p.append(b, lab);
       if (exists){ const sm = document.createElement('small'); sm.textContent = full ? 'ya tienes ' + MAX_VERS + ' versiones' : '+ versión ' + (nVers(s) + 1) + ' de ' + MAX_VERS; p.append(sm); }
+      let warn = null;
+      if (!sure){ warn = document.createElement('small'); warn.className = 'warn'; warn.textContent = '⚠ revisa'; p.append(warn); }
       row.append(p);
+      w.els.push({ p, cb, warn, elig });
       return cb;
     });
+    if (w.word.syl.length > 1){
+      const cut = document.createElement('button'); cut.className = 'ghost cutbtn'; cut.textContent = '✂ Ajustar';
+      cut.onclick = () => openEdit(w);
+      row.append(cut);
+    }
     box.append(row);
   });
   $('gReviewBox').hidden = false;
@@ -1379,6 +1462,60 @@ function updateSaveBtn(){
   $('gSave').textContent = 'Guardar ' + n + (n === 1 ? ' corte' : ' cortes');
   $('gSave').disabled = !n;
 }
+/* Editor de cortes: arrastrar con el dedo o el ratón */
+let edit = null;
+function closeEdit(){ edit = null; $('gEditBox').hidden = true; }
+function openEdit(w){
+  edit = { w, drag: -1 };
+  $('gEditWord').textContent = w.word.word;
+  const box = $('gEditSyl'); box.innerHTML = '';
+  w.word.syl.forEach((s, j) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '▶ ' + s; b.onclick = () => playData(sylAudio(w, j)); box.append(b); });
+  $('gEditBox').hidden = false;
+  drawEdit();
+  $('gEditBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function drawEdit(){
+  if (!edit) return;
+  const w = edit.w, cv = $('gEdit'), seg = gTake.data.subarray(w.start, w.end), len = w.end - w.start;
+  const cuts = w.sylRanges.slice(1).map(r => r[0]);
+  drawWave(cv, seg, { lines: [] });
+  const g = cv.getContext('2d'), W = cv.clientWidth, H = cv.clientHeight;
+  g.font = '600 13px ' + css('--mono'); g.textAlign = 'center'; g.fillStyle = css('--ink');
+  w.sylRanges.forEach(([a, b], j) => g.fillText(w.word.syl[j], (a + b) / 2 / len * W, 16));
+  g.fillStyle = css('--rec');
+  cuts.forEach((c, i) => { const x = c / len * W; g.fillRect(x - 1.5, 22, 3, H - 30); g.beginPath(); g.arc(x, H - 9, i === edit.drag ? 9 : 7, 0, Math.PI * 2); g.fill(); });
+}
+function editX(e){ const r = $('gEdit').getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
+$('gEdit').addEventListener('pointerdown', e => {
+  if (!edit) return;
+  const w = edit.w, len = w.end - w.start, x = editX(e), W = $('gEdit').clientWidth;
+  let best = -1, bd = 1e9;
+  w.sylRanges.slice(1).forEach((r, i) => { const dpx = Math.abs(r[0] / len - x) * W; if (dpx < bd){ bd = dpx; best = i; } });
+  if (best < 0 || bd > 40) return;
+  edit.drag = best; $('gEdit').setPointerCapture(e.pointerId); e.preventDefault(); drawEdit();
+});
+$('gEdit').addEventListener('pointermove', e => {
+  if (!edit || edit.drag < 0) return;
+  const w = edit.w, len = w.end - w.start, i = edit.drag + 1, gap = Math.floor(gTake.sr * 0.03);
+  const lo = w.sylRanges[i-1][0] + gap, hi = w.sylRanges[i][1] - gap;
+  const c = Math.max(lo, Math.min(hi, Math.round(editX(e) * len)));
+  w.sylRanges[i-1][1] = c; w.sylRanges[i][0] = c;
+  drawEdit();
+});
+const endDrag = e => {
+  if (!edit || edit.drag < 0) return;
+  const w = edit.w, i = edit.drag + 1; edit.drag = -1;
+  [i - 1, i].forEach(j => {
+    w.sure[j] = true;
+    const el = w.els[j]; el.p.classList.remove('doubt'); if (el.warn){ el.warn.remove(); el.warn = null; }
+    if (el.elig && !el.cb.checked){ el.cb.checked = true; el.p.classList.add('on'); }
+  });
+  updateSaveBtn(); drawEdit(); drawG();
+  playData(sylAudio(w, i));
+};
+$('gEdit').addEventListener('pointerup', endDrag);
+$('gEdit').addEventListener('pointercancel', endDrag);
+$('gEditClose').onclick = () => { closeEdit(); };
 $('gSave').onclick = () => {
   let n = 0;
   let nv = 0;
@@ -1388,13 +1525,13 @@ $('gSave').onclick = () => {
     if (clips.has(k)){ addVersion(k, sylAudio(w, j), gTake.sr, meta); nv++; }
     else { saveSyl(k, sylAudio(w, j), gTake.sr, meta); n++; }
   }));
-  gTake = null; $('gReviewBox').hidden = true;
+  gTake = null; $('gReviewBox').hidden = true; closeEdit();
   renderAll(); drawG();
   const b = bestSentence();
   status($('gStatus'), n + (n === 1 ? ' sílaba nueva' : ' sílabas nuevas') + (nv ? ' y ' + nv + (nv === 1 ? ' versión extra' : ' versiones extra') : '') + ' guardadas.' + (b >= 0 ? ' Te paso a la frase que más aporta ahora.' : ' ¡Texto completo!'), 'ok');
   if (b >= 0){ gi = b; renderGuided(); }
 };
-$('gDiscard').onclick = () => { gTake = null; $('gReviewBox').hidden = true; drawG(); renderGuided(); status($('gStatus'), 'Toma descartada. Puedes volver a grabarla.'); };
+$('gDiscard').onclick = () => { gTake = null; $('gReviewBox').hidden = true; closeEdit(); drawG(); renderGuided(); status($('gStatus'), 'Toma descartada. Puedes volver a grabarla.'); };
 function dispWords(i){
   const out = [];
   FRASES[i].split(/\s+/).forEach(tok => {
