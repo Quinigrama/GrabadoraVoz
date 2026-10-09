@@ -1,7 +1,7 @@
 /* Mi Voz: guarda la app para abrirla rápido y sin conexión.
    Las páginas se piden primero a internet (así siempre ves la última versión) y, si no hay conexión, se usa la copia guardada. */
-const CACHE = 'mivoz-v1';
-const SHELL = ['./', 'index.html', 'ingles.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
+const CACHE = 'mivoz-v2';
+const SHELL = ['./', 'index.html', 'ingles.html', 'manifest.webmanifest', 'users.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -13,7 +13,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  const isPage = req.mode === 'navigate' || /\.html$|\/$/.test(url.pathname);
+  const isPage = req.mode === 'navigate' || /\.html$|\.js$|\/$/.test(url.pathname);
   if (isPage){
     e.respondWith(
       fetch(req).then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res; })

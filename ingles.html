@@ -140,8 +140,9 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <a class="back" href="./">← Grabadora de sílabas</a>
     <h1>Inglés en Voz Alta</h1>
     <p>Lee en voz alta los textos de tus libros, mira qué palabras se te entienden, practica las difíciles y suéltate hablando.</p>
-    <div class="row" style="gap:8px"><button class="small" id="installBtn" hidden>📲 Instalar como app</button></div>
+    <div class="row" style="gap:8px"><span id="userBox"></span><button class="small" id="installBtn" hidden>📲 Instalar como app</button></div>
     <p class="note" id="installHelp" hidden></p>
+    <div id="bkNag" hidden style="margin-top:12px"></div>
   </header>
 
   <div class="banner" id="noSR" hidden>Este navegador no tiene reconocimiento de voz. Abre la página en <b>Chrome</b> (en el móvil o en el ordenador) para que pueda transcribir lo que dices.</div>
@@ -305,8 +306,11 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     </details>
   </section>
 </div>
+<script src="users.js"></script>
 <script>
 (() => {
+const U = window.MiVozUsers;
+U.mount(document.getElementById('userBox'));
 const $ = id => document.getElementById(id);
 const fmt = (n, d = 1) => n.toFixed(d).replace('.', ',');
 function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
@@ -318,7 +322,7 @@ let db = null;
 function openDB(){
   return new Promise(res => {
     try {
-      const r = indexedDB.open('ingles-en-voz-alta', 1);
+      const r = indexedDB.open(U.dbName('ingles-en-voz-alta'), 1);
       r.onupgradeneeded = () => r.result.createObjectStore('kv');
       r.onsuccess = () => res(r.result); r.onerror = () => res(null);
     } catch(e){ res(null); }
@@ -332,12 +336,12 @@ function load(key){
   });
 }
 function save(key){
-  try { if (db) db.transaction('kv', 'readwrite').objectStore('kv').put(S[key], key); } catch(e){}
+  try { if (db){ db.transaction('kv', 'readwrite').objectStore('kv').put(S[key], key); if (key !== 'history') U.changed('ingles'); } } catch(e){}
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 }
 const prefs = { accent: 'en-GB', rate: 0.9, noRec: false, hide: false };
-function loadPrefs(){ try { Object.assign(prefs, JSON.parse(localStorage.getItem('ingles-prefs') || '{}')); } catch(e){} }
-function savePrefs(){ try { localStorage.setItem('ingles-prefs', JSON.stringify(prefs)); } catch(e){} }
+function loadPrefs(){ try { Object.assign(prefs, JSON.parse(localStorage.getItem(U.key('ingles-prefs')) || '{}')); } catch(e){} }
+function savePrefs(){ try { localStorage.setItem(U.key('ingles-prefs'), JSON.stringify(prefs)); } catch(e){} }
 
 /* ---------- Texto: frases y diálogos ---------- */
 const SPEAKER = /^\s*([A-Z][A-Za-z.'\- ]{0,22}?)\s*:\s*(.+)$/;
@@ -598,10 +602,13 @@ $('bkDown').onclick = () => {
   const blob = new Blob([JSON.stringify({ app: 'ingles-en-voz-alta', v: 1, ...S }, null, 1)], { type: 'application/json' });
   const d = new Date(), z = n => String(n).padStart(2, '0');
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'ingles-copia-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
+  const who = U.uid() === U.MAIN ? '' : U.user().name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, '-').replace(/^-+|-+$/g, '') + '-';
+  a.download = 'ingles-copia-' + who + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
   status($('bkStatus'), 'Copia descargada: ' + S.texts.length + ' textos, ' + S.words.length + ' palabras.', 'ok');
+  U.backedUp('ingles'); nag && nag.refresh();
 };
+let nag = null;
 $('bkIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -990,6 +997,7 @@ const SAMPLE = { id: 1, title: 'Ejemplo · At the café', best: {}, body: 'Anna:
   if (!t) save('texts');
   curId = S.texts.length ? S.texts[0].id : null;
   renderTexts(); renderWords();
+  nag = U.reminder({ el: $('bkNag'), page: 'ingles', what: 'textos y palabras', min: 2, count: () => S.texts.filter(t => t.id !== 1).length + S.words.length, run: () => $('bkDown').click() });
   let tab = 'texts'; try { tab = localStorage.getItem('ingles-tab') || 'texts'; } catch(e){}
   showTab(TABS.includes(tab) ? tab : 'texts');
 })();
