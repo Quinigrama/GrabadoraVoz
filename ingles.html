@@ -53,7 +53,7 @@ button:focus-visible,.btn:focus-within,input:focus-visible,select:focus-visible,
 @media (prefers-reduced-motion: reduce){.recbtn.on{animation:none}}
 .ghost{background:transparent}
 .small{padding:7px 12px;font-weight:500;font-size:13px}
-input[type=text],textarea,select{font:500 15px/1.4 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input[type=text],input[type=password],input[type=search],textarea,select{font:500 15px/1.4 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
 select{width:auto}
 textarea{min-height:160px;resize:vertical}
 input[type=range]{width:100%;accent-color:var(--accent)}
@@ -130,6 +130,26 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .hrow{display:grid;grid-template-columns:88px 1fr 64px;gap:10px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
 .hrow .bar{height:10px;border-radius:99px;background:var(--accent)}
 .hrow span:last-child{text-align:right;font-weight:600}
+/* corregir */
+.fixbox{display:grid;gap:10px;padding:14px;border-radius:12px;background:var(--bg)}
+.fixbox.formal{border-left:4px solid var(--accent)}
+.fixbox.natural{border-left:4px solid var(--ok)}
+.fixbox.said{border-left:4px solid var(--line)}
+.fixtxt{font:600 clamp(18px,4.5vw,22px)/1.45 var(--display);margin:0;overflow-wrap:anywhere}
+.fixtxt.mine{font-weight:500;color:var(--muted)}
+.why{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.cat{font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:var(--warn-soft);color:var(--ink)}
+.cat.gramatica{background:var(--bad-soft)} .cat.vocabulario{background:var(--accent-soft)} .cat.expresion{background:var(--warn-soft)} .cat.ninguno{background:var(--ok-soft)}
+.perfect{padding:14px;border-radius:12px;background:var(--ok-soft);font-size:16px}
+.flist{display:grid;gap:8px;max-height:420px;overflow-y:auto;padding-right:4px}
+.fitem{display:grid;gap:4px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);width:100%;font:400 14px/1.4 var(--body);border-radius:10px}
+.fitem .bad{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--rec);overflow-wrap:anywhere}
+.fitem .good{font-weight:600;overflow-wrap:anywhere}
+.fitem .meta{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+input[type=password]{font-family:var(--mono)}
+#fxIn{min-height:96px}
+#fxSearch{flex:1 1 160px;width:auto} #fxCat{width:auto}
+#fxKey{flex:1 1 200px;width:auto}
 details summary{cursor:pointer;font-weight:600}
 details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
 </style>
@@ -166,6 +186,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <button role="tab" id="tab-dlg" aria-controls="p-dlg" aria-selected="false">Diálogo</button>
     <button role="tab" id="tab-words" aria-controls="p-words" aria-selected="false">Palabras · <span id="wcount">0</span></button>
     <button role="tab" id="tab-talk" aria-controls="p-talk" aria-selected="false">Hablar</button>
+    <button role="tab" id="tab-fix" aria-controls="p-fix" aria-selected="false">Corregir ✨</button>
   </div>
 
   <!-- TEXTOS -->
@@ -305,6 +326,58 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <p>El texto de las fotos se lee dentro del navegador con un lector de imágenes gratuito. Revísalo antes de guardar: con fotos torcidas o con poca luz se equivoca.</p>
     </details>
   </section>
+
+  <!-- CORREGIR -->
+  <section class="panel" id="p-fix" role="tabpanel" aria-labelledby="tab-fix" hidden>
+    <div class="label">Corrígeme</div>
+    <p class="note">Di o escribe una frase en inglés como te salga. Te devuelvo dos versiones mejoradas, una formal y otra natural, para que las escuches y las repitas.</p>
+
+    <details id="fxKeyBox">
+      <summary id="fxKeySum">🔑 Clave de Gemini</summary>
+      <p>Las correcciones las hace Gemini, la IA de Google. Necesitas una clave gratuita: entra en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> con tu cuenta de Google, pulsa «Create API key» y pégala aquí.</p>
+      <div class="row">
+        <input type="password" id="fxKey" class="grow" placeholder="Pega aquí tu clave (empieza por AIza…)" autocomplete="off" spellcheck="false">
+        <button class="primary small" id="fxKeySave">Guardar y probar</button>
+      </div>
+      <div class="row">
+        <label class="note" for="fxModel">Modelo</label>
+        <select id="fxModel"><option value="gemini-flash-latest">gemini-flash-latest</option></select>
+        <button class="ghost small" id="fxKeyDel">Borrar clave</button>
+      </div>
+      <span class="status" id="fxKeyStatus"></span>
+      <p>La clave se guarda solo en este navegador y no entra en la copia de seguridad. En la capa gratuita Google puede usar lo que le mandas para mejorar sus productos: no escribas datos personales.</p>
+    </details>
+
+    <textarea id="fxIn" rows="3" placeholder="Por ejemplo: Yesterday I have gone to the supermarket for buy some fruits."></textarea>
+    <div class="row">
+      <button class="recbtn" id="fxMic">🎤 Dictar</button>
+      <button class="primary" id="fxGo">✨ Corregir</button>
+      <button class="ghost small" id="fxClear">Borrar</button>
+      <span class="status grow" id="fxStatus"></span>
+    </div>
+
+    <div id="fxOut" hidden></div>
+
+    <div class="row between" style="padding-top:12px;border-top:1px solid var(--line)">
+      <div class="label">Mis frases corregidas · <span id="fxCount">0</span></div>
+      <button class="small" id="fxCsv">⇩ Exportar CSV</button>
+    </div>
+    <div class="row">
+      <input type="search" id="fxSearch" class="grow" placeholder="Buscar…">
+      <select id="fxCat">
+        <option value="all">Todas</option>
+        <option value="gramatica">Gramática</option>
+        <option value="vocabulario">Vocabulario</option>
+        <option value="expresion">Expresión</option>
+      </select>
+    </div>
+    <div class="flist" id="fxList"></div>
+    <details>
+      <summary>Cómo funciona</summary>
+      <p>Tu voz la transcribe el reconocedor de Chrome, gratis. Luego mandamos solo el texto a Gemini, que no corrige puntuación ni mayúsculas porque estás hablando, no escribiendo.</p>
+      <p>Pulsa «🎤 Repítela» en la versión que más te guste: te escucho y marco en verde las palabras que se entienden bien. Las palabras útiles que te sugiera puedes mandarlas a «Palabras» con un toque.</p>
+    </details>
+  </section>
 </div>
 <script src="users.js"></script>
 <script>
@@ -317,7 +390,7 @@ function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + 
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* ---------- Datos guardados ---------- */
-const S = { texts: [], words: [], history: [] };
+const S = { texts: [], words: [], history: [], fixes: [] };
 let db = null;
 function openDB(){
   return new Promise(res => {
@@ -489,7 +562,7 @@ async function listenAndRecord({ onInterim, onEnd }){
 }
 
 /* ---------- Pestañas ---------- */
-const TABS = ['texts', 'read', 'dlg', 'words', 'talk'];
+const TABS = ['texts', 'read', 'dlg', 'words', 'talk', 'fix'];
 function showTab(name){
   TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', t === name); $('p-' + t).hidden = t !== name; });
   try { localStorage.setItem('ingles-tab', name); } catch(e){}
@@ -497,6 +570,7 @@ function showTab(name){
   if (name === 'dlg') renderDlg();
   if (name === 'words') renderWords();
   if (name === 'talk') renderTalk();
+  if (name === 'fix') renderFix();
 }
 TABS.forEach(t => $('tab-' + t).onclick = () => showTab(t));
 
@@ -605,7 +679,7 @@ $('bkDown').onclick = () => {
   const who = U.uid() === U.MAIN ? '' : U.user().name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, '-').replace(/^-+|-+$/g, '') + '-';
   a.download = 'ingles-copia-' + who + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-  status($('bkStatus'), 'Copia descargada: ' + S.texts.length + ' textos, ' + S.words.length + ' palabras.', 'ok');
+  status($('bkStatus'), 'Copia descargada: ' + S.texts.length + ' textos, ' + S.words.length + ' palabras y ' + S.fixes.length + ' frases corregidas.', 'ok');
   U.backedUp('ingles'); nag && nag.refresh();
 };
 let nag = null;
@@ -619,10 +693,12 @@ $('bkIn').onchange = async e => {
     (d.texts || []).forEach(t => { if (!S.texts.some(x => x.id === t.id)){ S.texts.push(t); nt++; } });
     (d.words || []).forEach(w => { if (!S.words.some(x => x.w === w.w)){ S.words.push(w); nw++; } });
     (d.history || []).forEach(h => { if (!S.history.some(x => x.t === h.t)) S.history.push(h); });
-    S.history.sort((a, b) => a.t - b.t);
-    ['texts', 'words', 'history'].forEach(save);
-    renderTexts(); renderWords();
-    status($('bkStatus'), 'Importado: ' + nt + ' textos y ' + nw + ' palabras nuevas.', 'ok');
+    let nf = 0;
+    (d.fixes || []).forEach(f => { if (!S.fixes.some(x => x.id === f.id)){ S.fixes.push(f); nf++; } });
+    S.history.sort((a, b) => a.t - b.t); S.fixes.sort((a, b) => a.id - b.id);
+    ['texts', 'words', 'history', 'fixes'].forEach(save);
+    renderTexts(); renderWords(); renderFixList();
+    status($('bkStatus'), 'Importado: ' + nt + ' textos, ' + nw + ' palabras y ' + nf + ' frases corregidas nuevas.', 'ok');
   } catch(err){ status($('bkStatus'), 'Ese archivo no es una copia de esta página.', 'err'); }
 };
 
@@ -984,6 +1060,253 @@ $('kGo').onclick = () => {
   start();
 };
 
+/* ---------- Corregir (Gemini) ---------- */
+const GKEY = 'ingles-gemini-key', GMODEL = 'ingles-gemini-model';
+const lsGet = (k, d) => { try { return localStorage.getItem(k) || d; } catch(e){ return d; } };
+const lsSet = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch(e){} };
+const CATS = { gramatica: 'Gramática', vocabulario: 'Vocabulario', expresion: 'Expresión', ninguno: 'Correcta' };
+let fxRun = null, fxCur = null, fxBusy = null;
+
+function gErr(code, msg){
+  if (code === 400 && /key/i.test(msg)) return 'La clave no es válida. Cópiala otra vez desde AI Studio.';
+  if (code === 403) return 'La clave no tiene permiso para usar Gemini. Crea una nueva en AI Studio.';
+  if (code === 404) return 'Ese modelo ya no existe. Abre «Clave de Gemini» y pulsa «Guardar y probar» para elegir otro.';
+  if (code === 429) return 'Has llegado al límite gratuito por ahora. Espera un minuto y vuelve a probar.';
+  if (code >= 500) return 'Gemini está saturado ahora mismo. Prueba de nuevo en unos segundos.';
+  return msg || 'No he podido hablar con Gemini.';
+}
+async function gFetch(path, body){
+  const key = lsGet(GKEY, '');
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/' + path, body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) }
+    : { headers: { 'x-goog-api-key': key } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(gErr(r.status, d.error && d.error.message));
+  return d;
+}
+async function loadModels(){
+  const d = await gFetch('models?pageSize=200');
+  const ids = (d.models || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => m.name.replace(/^models\//, ''))
+    .filter(n => /^gemini-[\d.]+-flash(-lite)?$|^gemini-flash(-lite)?-latest$/.test(n));
+  const ver = n => parseFloat((n.match(/gemini-([\d.]+)/) || [0, 99])[1]);
+  ids.sort((a, b) => ver(b) - ver(a) || (/lite/.test(a) ? 1 : 0) - (/lite/.test(b) ? 1 : 0));
+  return ids;
+}
+function fillModels(ids){
+  const sel = $('fxModel'), cur = lsGet(GMODEL, 'gemini-flash-latest');
+  const list = [...new Set(['gemini-flash-latest', ...ids, cur])];
+  sel.innerHTML = list.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('');
+  sel.value = cur;
+}
+function keyUI(){
+  const has = !!lsGet(GKEY, '');
+  $('fxKeySum').textContent = has ? '🔑 Clave de Gemini · guardada ✓' : '🔑 Clave de Gemini · falta configurarla';
+  $('fxKeyBox').open = !has;
+  $('fxKey').value = ''; $('fxKey').placeholder = has ? 'Clave guardada. Pega otra para cambiarla.' : 'Pega aquí tu clave (empieza por AIza…)';
+}
+$('fxKeySave').onclick = async () => {
+  const k = $('fxKey').value.trim();
+  if (k) lsSet(GKEY, k);
+  if (!lsGet(GKEY, '')){ status($('fxKeyStatus'), 'Primero pega la clave.', 'err'); return; }
+  status($('fxKeyStatus'), 'Probando la clave…');
+  try {
+    const ids = await loadModels(); fillModels(ids);
+    status($('fxKeyStatus'), 'Clave correcta ✓ ' + ids.length + ' modelos Flash disponibles.', 'ok');
+    keyUI(); $('fxKeyBox').open = true;
+  } catch(e){ if (k) lsSet(GKEY, ''); status($('fxKeyStatus'), e.message, 'err'); keyUI(); }
+};
+$('fxKeyDel').onclick = () => { lsSet(GKEY, ''); keyUI(); status($('fxKeyStatus'), 'Clave borrada de este navegador.'); };
+$('fxModel').onchange = () => lsSet(GMODEL, $('fxModel').value);
+
+const FX_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    isPerfect: { type: 'BOOLEAN' },
+    formal: { type: 'STRING', nullable: true },
+    natural: { type: 'STRING', nullable: true },
+    explanation: { type: 'STRING' },
+    category: { type: 'STRING', enum: ['gramatica', 'vocabulario', 'expresion', 'ninguno'] },
+    words: { type: 'ARRAY', items: { type: 'STRING' } }
+  },
+  required: ['isPerfect', 'formal', 'natural', 'explanation', 'category', 'words'],
+  propertyOrdering: ['isPerfect', 'formal', 'natural', 'explanation', 'category', 'words']
+};
+async function askGemini(text){
+  const variety = prefs.accent === 'en-US' ? 'American' : 'British';
+  const prompt = 'You are a friendly English speaking coach for a Spanish adult who is learning to speak English fluently. ' +
+    'The student said this out loud (it was transcribed by speech recognition):\n<<<' + text + '>>>\n\n' +
+    'Help them sound natural, fluent and correct in spoken ' + variety + ' English. Focus ONLY on: grammar errors, wrong or unnatural words (prepositions, false friends, literal translations from Spanish), and more idiomatic ways to say the same idea. ' +
+    'Do NOT comment on punctuation, capital letters or sentence length: it is speech, not writing. If a word looks like a speech-recognition mistake, assume the most likely intended word and do not count it as an error. ' +
+    'If the sentence is already correct and natural, set isPerfect to true, formal and natural to null, category to "ninguno", and praise it briefly. ' +
+    'Otherwise give two versions: "formal" (polished and professional) and "natural" (relaxed, how a native would say it to a friend, staying close to what the student meant). ' +
+    '"explanation": in SPANISH (Spain), short and clear (2-4 sentences), explaining the key mistakes and why, quoting the English words involved. ' +
+    '"category": the main type of improvement: "gramatica", "vocabulario" or "expresion". ' +
+    '"words": up to 4 useful English words or short phrases from your versions that the student should learn (empty array if none).';
+  const d = await gFetch('models/' + encodeURIComponent(lsGet(GMODEL, 'gemini-flash-latest')) + ':generateContent', {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.4, responseMimeType: 'application/json', responseSchema: FX_SCHEMA }
+  });
+  const c = d.candidates && d.candidates[0];
+  const raw = c && c.content && c.content.parts ? c.content.parts.map(p => p.text || '').join('') : '';
+  if (!raw) throw new Error(c && c.finishReason === 'SAFETY' ? 'Gemini no ha querido responder a esa frase. Prueba con otra.' : 'Gemini no ha devuelto respuesta. Vuelve a probar.');
+  const m = raw.match(/\{[\s\S]*\}/);
+  const j = JSON.parse(m ? m[0] : raw);
+  if (j.isPerfect){ j.formal = null; j.natural = null; j.category = 'ninguno'; }
+  if (!j.formal && !j.natural) j.isPerfect = true;
+  return { id: Date.now(), said: text, isPerfect: !!j.isPerfect, formal: j.formal || '', natural: j.natural || '', why: j.explanation || '', cat: CATS[j.category] ? j.category : 'expresion', words: (j.words || []).slice(0, 4), best: {} };
+}
+
+$('fxMic').onclick = () => {
+  if (fxRun){ fxRun.over = true; try { fxRun.r.stop(); } catch(e){} return; }
+  try { speechSynthesis.cancel(); } catch(e){}
+  const base = $('fxIn').value.trim();
+  let text = '';
+  fxRun = { over: false, r: null };
+  $('fxMic').classList.add('on'); $('fxMic').textContent = '■ Parar'; $('fxGo').disabled = true;
+  status($('fxStatus'), 'Te escucho… pulsa «Parar» al terminar.');
+  const go = () => {
+    fxRun.r = listen({ continuous: true, onInterim: (f, i) => { $('fxIn').value = (base + ' ' + text + ' ' + f + ' ' + i).trim(); }, onEnd: (alts, err) => {
+      if (alts[0]) text = (text + ' ' + alts[0]).trim();
+      $('fxIn').value = (base + ' ' + text).trim();
+      if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+      const fatal = err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture';
+      if (fxRun && !fxRun.over && !fatal){ go(); return; }
+      fxRun = null;
+      $('fxMic').classList.remove('on'); $('fxMic').textContent = '🎤 Dictar'; $('fxGo').disabled = false;
+      status($('fxStatus'), text ? 'Revisa el texto si hace falta y pulsa «Corregir».' : 'No he captado nada.');
+    } });
+  };
+  go();
+};
+$('fxClear').onclick = () => { $('fxIn').value = ''; $('fxOut').hidden = true; status($('fxStatus'), ''); };
+$('fxGo').onclick = async () => {
+  const text = $('fxIn').value.trim();
+  if (!text){ status($('fxStatus'), 'Escribe o dicta una frase primero.', 'err'); return; }
+  if (!lsGet(GKEY, '')){ $('fxKeyBox').open = true; status($('fxStatus'), 'Falta tu clave de Gemini (arriba).', 'err'); return; }
+  if (!/[a-z]/i.test(text)){ status($('fxStatus'), 'Eso no parece inglés.', 'err'); return; }
+  $('fxGo').disabled = true; status($('fxStatus'), 'Pensando… ✨');
+  try {
+    const f = await askGemini(text.slice(0, 1200));
+    S.fixes.push(f); save('fixes');
+    fxCur = f; showFix(f); renderFixList();
+    status($('fxStatus'), '');
+    speak(f.natural || f.formal || f.said);
+  } catch(e){
+    status($('fxStatus'), e instanceof SyntaxError ? 'La respuesta de Gemini ha llegado rota. Vuelve a pulsar «Corregir».' : (e.message === 'Failed to fetch' ? 'Sin conexión con Gemini. Comprueba internet.' : e.message), 'err');
+  } finally { $('fxGo').disabled = false; }
+};
+
+function fixCard(f, kind, title){
+  const t = f[kind];
+  const best = f.best && f.best[kind] != null ? ' · tu mejor: ' + Math.round(f.best[kind] * 100) + ' %' : '';
+  return '<div class="fixbox ' + kind + '" data-k="' + kind + '"><div class="label">' + title + '<span class="fxBest">' + best + '</span></div>' +
+    '<p class="fixtxt">' + sentenceHTML(t) + '</p>' +
+    '<div class="row"><button class="small fxSay">🔊 Escuchar</button><button class="small ghost fxSlow">🐢 Despacio</button><button class="small recbtn fxRep">🎤 Repítela</button><span class="score fxScore" hidden></span></div>' +
+    '<p class="heard fxHeard"></p></div>';
+}
+function showFix(f){
+  const o = $('fxOut'); o.hidden = false;
+  let h = '<div class="fixbox said"><div class="row between"><div class="label">Lo que dijiste</div><span class="cat ' + f.cat + '">' + CATS[f.cat] + '</span></div><p class="fixtxt mine">' + esc(f.said) + '</p></div>';
+  if (f.isPerfect) h += '<div class="perfect">✅ ' + esc(f.why || '¡Perfecto! Suena natural.') + '</div>';
+  else {
+    if (f.formal) h += fixCard(f, 'formal', '🎩 Formal');
+    if (f.natural) h += fixCard(f, 'natural', '💬 Natural');
+    h += '<p class="why">💡 ' + esc(f.why) + '</p>';
+  }
+  if (f.words && f.words.length){
+    h += '<div class="label">Palabras útiles · toca para añadirlas a «Palabras»</div><div class="chips">' +
+      f.words.map((w, i) => '<button class="chip fxW" data-i="' + i + '">' + esc(w) + ' <small>+</small></button>').join('') + '</div>';
+  }
+  o.innerHTML = '<div style="display:grid;gap:12px">' + h + '</div>';
+  o.querySelectorAll('.fixbox[data-k]').forEach(box => {
+    const k = box.dataset.k, text = f[k];
+    box.querySelector('.fxSay').onclick = () => speak(text);
+    box.querySelector('.fxSlow').onclick = () => speak(text, { rate: Math.max(0.5, prefs.rate - 0.25) });
+    box.querySelector('.fxRep').onclick = () => repeatFix(f, k, box);
+    box.querySelectorAll('.w').forEach(el => { el.onclick = () => speak(cleanWord(displayWords(text)[+el.dataset.i])); });
+  });
+  o.querySelectorAll('.fxW').forEach(b => {
+    b.onclick = () => {
+      const w = f.words[+b.dataset.i];
+      const parts = w.split(/\s+/).length > 1 ? w.split(/\s+/) : [w];
+      let added = 0; parts.forEach(p => { if (addWord(p, true)) added++; });
+      b.classList.add('done'); b.disabled = true; b.innerHTML = esc(w) + ' <small>' + (added ? '✓' : 'ya estaba') + '</small>';
+      $('wcount') && ($('wcount').textContent = pending().length);
+    };
+  });
+}
+async function repeatFix(f, k, box){
+  const btn = box.querySelector('.fxRep');
+  if (fxBusy){ try { fxBusy.stop(); } catch(e){} return; }
+  try { speechSynthesis.cancel(); } catch(e){}
+  btn.classList.add('on'); btn.textContent = '■ Parar';
+  box.querySelector('.fxHeard').innerHTML = '<span class="interim">Te escucho…</span>';
+  fxBusy = listen({ onInterim: (fin, i) => { box.querySelector('.fxHeard').innerHTML = '<b>' + esc((fin + ' ' + i).trim()) + '</b>'; }, onEnd: (alts, err) => {
+    fxBusy = null; btn.classList.remove('on'); btn.textContent = '🎤 Repítela';
+    if (err && err !== 'no-speech' && err !== 'aborted') micError(err);
+    if (!alts.length){ box.querySelector('.fxHeard').textContent = 'No te he oído. Vuelve a probar.'; return; }
+    const res = compare(f[k], alts);
+    box.querySelector('.fixtxt').innerHTML = sentenceHTML(f[k], res);
+    box.querySelectorAll('.fixtxt .w').forEach(el => { el.onclick = () => speak(cleanWord(res.words[+el.dataset.i])); });
+    const sc = box.querySelector('.fxScore'); sc.hidden = false; sc.textContent = Math.round(res.score * 100) + ' %';
+    box.querySelector('.fxHeard').innerHTML = 'He oído: <b>' + esc(alts[0]) + '</b>';
+    f.best = f.best || {};
+    if (f.best[k] == null || res.score > f.best[k]){ f.best[k] = res.score; save('fixes'); box.querySelector('.fxBest').textContent = ' · tu mejor: ' + Math.round(res.score * 100) + ' %'; }
+  } });
+}
+
+function fixRows(){
+  const q = $('fxSearch').value.trim().toLowerCase(), c = $('fxCat').value;
+  return S.fixes.filter(f => !f.isPerfect)
+    .filter(f => c === 'all' || f.cat === c)
+    .filter(f => !q || [f.said, f.formal, f.natural, f.why].join(' ').toLowerCase().includes(q))
+    .slice().reverse();
+}
+function renderFixList(){
+  const box = $('fxList'), rows = fixRows();
+  $('fxCount').textContent = S.fixes.filter(f => !f.isPerfect).length;
+  box.innerHTML = '';
+  if (!rows.length){ box.innerHTML = '<p class="note">' + (S.fixes.length ? 'No hay frases que coincidan.' : 'Aquí irán tus frases corregidas para repasarlas cuando quieras.') + '</p>'; return; }
+  rows.forEach(f => {
+    const d = new Date(f.id);
+    const it = document.createElement('div'); it.className = 'fitem';
+    it.innerHTML = '<span class="bad">' + esc(f.said) + '</span><span class="good">' + esc(f.natural || f.formal) + '</span>' +
+      '<span class="meta"><span class="cat ' + f.cat + '">' + CATS[f.cat] + '</span>' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() +
+      '<span class="grow"></span><button class="small ghost fxOpen">Abrir</button><button class="small ghost fxDel">✕</button></span>';
+    it.querySelector('.fxOpen').onclick = () => { fxCur = f; $('fxIn').value = f.said; showFix(f); $('fxOut').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const del = it.querySelector('.fxDel');
+    del.onclick = () => {
+      if (!del.dataset.armed){ del.dataset.armed = 1; del.textContent = '¿Borrar?'; setTimeout(() => { if (del.isConnected){ delete del.dataset.armed; del.textContent = '✕'; } }, 3000); return; }
+      S.fixes = S.fixes.filter(x => x.id !== f.id); save('fixes');
+      if (fxCur === f){ fxCur = null; $('fxOut').hidden = true; }
+      renderFixList();
+    };
+    box.append(it);
+  });
+}
+$('fxSearch').oninput = renderFixList;
+$('fxCat').onchange = renderFixList;
+$('fxCsv').onclick = () => {
+  const rows = S.fixes.filter(f => !f.isPerfect);
+  if (!rows.length){ status($('fxStatus'), 'Todavía no hay frases que exportar.', 'err'); return; }
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+  const pct = v => v == null ? '' : String(Math.round(v * 100)).replace('.', ',');
+  const lines = [['Fecha', 'Lo que dije', 'Formal', 'Natural', 'Explicación', 'Tipo', 'Mejor formal %', 'Mejor natural %'].map(q).join(';')]
+    .concat(rows.map(f => { const d = new Date(f.id); return [d.toLocaleDateString('es-ES'), f.said, f.formal, f.natural, f.why, CATS[f.cat], pct(f.best && f.best.formal), pct(f.best && f.best.natural)].map(q).join(';'); }));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'ingles-frases-corregidas-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.csv';
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+};
+function renderFix(){ $('fxMic').disabled = !SR; renderFixList(); }
+function initFix(){
+  fillModels([]); keyUI(); renderFixList();
+  if (lsGet(GKEY, '')) loadModels().then(fillModels).catch(() => {});
+}
+
 /* ---------- Ajustes y arranque ---------- */
 $('accent').onchange = () => { prefs.accent = $('accent').value; savePrefs(); };
 $('rate').oninput = () => { prefs.rate = +$('rate').value; $('rateo').textContent = fmt(prefs.rate, 2).replace(/0$/, '') + '×'; savePrefs(); };
@@ -992,12 +1315,12 @@ const SAMPLE = { id: 1, title: 'Ejemplo · At the café', best: {}, body: 'Anna:
   loadPrefs();
   $('accent').value = prefs.accent; $('rate').value = prefs.rate; $('rateo').textContent = fmt(prefs.rate, 2).replace(/0$/, '') + '×';
   db = await openDB();
-  const [t, w, h] = await Promise.all([load('texts'), load('words'), load('history')]);
-  S.texts = t || [SAMPLE]; S.words = w || []; S.history = h || [];
+  const [t, w, h, fx] = await Promise.all([load('texts'), load('words'), load('history'), load('fixes')]);
+  S.texts = t || [SAMPLE]; S.words = w || []; S.history = h || []; S.fixes = fx || [];
   if (!t) save('texts');
   curId = S.texts.length ? S.texts[0].id : null;
-  renderTexts(); renderWords();
-  nag = U.reminder({ el: $('bkNag'), page: 'ingles', what: 'textos y palabras', min: 2, count: () => S.texts.filter(t => t.id !== 1).length + S.words.length, run: () => $('bkDown').click() });
+  renderTexts(); renderWords(); initFix();
+  nag = U.reminder({ el: $('bkNag'), page: 'ingles', what: 'textos y palabras', min: 2, count: () => S.texts.filter(t => t.id !== 1).length + S.words.length + S.fixes.length, run: () => $('bkDown').click() });
   let tab = 'texts'; try { tab = localStorage.getItem('ingles-tab') || 'texts'; } catch(e){}
   showTab(TABS.includes(tab) ? tab : 'texts');
 })();
