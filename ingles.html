@@ -333,19 +333,27 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <p class="note">Di o escribe una frase en inglés como te salga. Te devuelvo dos versiones mejoradas, una formal y otra natural, para que las escuches y las repitas.</p>
 
     <details id="fxKeyBox">
-      <summary id="fxKeySum">🔑 Clave de Gemini</summary>
-      <p>Las correcciones las hace Gemini, la IA de Google. Necesitas una clave gratuita: entra en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> con tu cuenta de Google, pulsa «Create API key» y pégala aquí.</p>
+      <summary id="fxKeySum">🤖 Inteligencia artificial</summary>
       <div class="row">
-        <input type="password" id="fxKey" class="grow" placeholder="Pega aquí tu clave (empieza por AIza…)" autocomplete="off" spellcheck="false">
+        <label class="note" for="fxProv">Corregir con</label>
+        <select id="fxProv">
+          <option value="gemini">Gemini (Google)</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
+      </div>
+      <p id="fxKeyHelp"></p>
+      <div class="row">
+        <input type="password" id="fxKey" class="grow" placeholder="Pega aquí tu clave" autocomplete="off" spellcheck="false">
         <button class="primary small" id="fxKeySave">Guardar y probar</button>
       </div>
       <div class="row">
         <label class="note" for="fxModel">Modelo</label>
-        <select id="fxModel"><option value="gemini-flash-latest">gemini-flash-latest</option></select>
+        <select id="fxModel"></select>
         <button class="ghost small" id="fxKeyDel">Borrar clave</button>
       </div>
       <span class="status" id="fxKeyStatus"></span>
-      <p>La clave se guarda solo en este navegador y no entra en la copia de seguridad. En la capa gratuita Google puede usar lo que le mandas para mejorar sus productos: no escribas datos personales.</p>
+      <p>Cada clave se guarda solo en este navegador y no entra en la copia de seguridad. Puedes tener las tres guardadas y cambiar de IA cuando quieras.</p>
     </details>
 
     <textarea id="fxIn" rows="3" placeholder="Por ejemplo: Yesterday I have gone to the supermarket for buy some fruits."></textarea>
@@ -374,7 +382,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="flist" id="fxList"></div>
     <details>
       <summary>Cómo funciona</summary>
-      <p>Tu voz la transcribe el reconocedor de Chrome, gratis. Luego mandamos solo el texto a Gemini, que no corrige puntuación ni mayúsculas porque estás hablando, no escribiendo.</p>
+      <p>Tu voz la transcribe el reconocedor de Chrome, gratis. Luego mandamos solo el texto a la IA que elijas (Gemini, Claude o DeepSeek), que no corrige puntuación ni mayúsculas porque estás hablando, no escribiendo.</p>
       <p>Pulsa «🎤 Repítela» en la versión que más te guste: te escucho y marco en verde las palabras que se entienden bien. Las palabras útiles que te sugiera puedes mandarlas a «Palabras» con un toque.</p>
     </details>
   </section>
@@ -1060,65 +1068,43 @@ $('kGo').onclick = () => {
   start();
 };
 
-/* ---------- Corregir (Gemini) ---------- */
-const GKEY = 'ingles-gemini-key', GMODEL = 'ingles-gemini-model';
+/* ---------- Corregir (Gemini, Claude o DeepSeek) ---------- */
 const lsGet = (k, d) => { try { return localStorage.getItem(k) || d; } catch(e){ return d; } };
 const lsSet = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch(e){} };
 const CATS = { gramatica: 'Gramática', vocabulario: 'Vocabulario', expresion: 'Expresión', ninguno: 'Correcta' };
 let fxRun = null, fxCur = null, fxBusy = null;
 
-function gErr(code, msg){
-  if (code === 400 && /key/i.test(msg)) return 'La clave no es válida. Cópiala otra vez desde AI Studio.';
-  if (code === 403) return 'La clave no tiene permiso para usar Gemini. Crea una nueva en AI Studio.';
-  if (code === 404) return 'Ese modelo ya no existe. Abre «Clave de Gemini» y pulsa «Guardar y probar» para elegir otro.';
-  if (code === 429) return 'Has llegado al límite gratuito por ahora. Espera un minuto y vuelve a probar.';
-  if (code >= 500) return 'Gemini está saturado ahora mismo. Prueba de nuevo en unos segundos.';
-  return msg || 'No he podido hablar con Gemini.';
+function httpErr(name, code, msg){
+  if (code === 401 || (code === 400 && /api.?key/i.test(msg || ''))) return 'La clave de ' + name + ' no es válida. Cópiala otra vez.';
+  if (code === 402 || /credit|balance/i.test(msg || '')) return 'Tu cuenta de ' + name + ' no tiene saldo. Recárgala o elige otra IA.';
+  if (code === 403) return 'La clave de ' + name + ' no tiene permiso. Crea una nueva.';
+  if (code === 404) return 'Ese modelo de ' + name + ' ya no existe. Abre «Inteligencia artificial» y pulsa «Guardar y probar» para elegir otro.';
+  if (code === 429) return 'Has llegado al límite de ' + name + ' por ahora. Espera un minuto y vuelve a probar.';
+  if (code >= 500) return name + ' está saturado ahora mismo. Prueba de nuevo en unos segundos.';
+  return msg || 'No he podido hablar con ' + name + '.';
 }
-async function gFetch(path, body){
-  const key = lsGet(GKEY, '');
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/' + path, body
-    ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) }
-    : { headers: { 'x-goog-api-key': key } });
+async function req(prov, url, opt){
+  let r;
+  try { r = await fetch(url, opt); }
+  catch(e){ throw new Error('No he podido conectar con ' + prov.name + '. Comprueba internet' + (prov.cors ? '' : ' (o puede que ' + prov.name + ' no admita llamadas desde una página web)') + '.'); }
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(gErr(r.status, d.error && d.error.message));
+  if (!r.ok) throw new Error(httpErr(prov.name, r.status, d.error && (d.error.message || d.error)));
   return d;
 }
-async function loadModels(){
-  const d = await gFetch('models?pageSize=200');
-  const ids = (d.models || [])
-    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-    .map(m => m.name.replace(/^models\//, ''))
-    .filter(n => /^gemini-[\d.]+-flash(-lite)?$|^gemini-flash(-lite)?-latest$/.test(n));
-  const ver = n => parseFloat((n.match(/gemini-([\d.]+)/) || [0, 99])[1]);
-  ids.sort((a, b) => ver(b) - ver(a) || (/lite/.test(a) ? 1 : 0) - (/lite/.test(b) ? 1 : 0));
-  return ids;
+const JSON_EXAMPLE = '{"isPerfect": false, "formal": "...", "natural": "...", "explanation": "...", "category": "gramatica", "words": ["...", "..."]}';
+function coachPrompt(text){
+  const variety = prefs.accent === 'en-US' ? 'American' : 'British';
+  return 'You are a friendly English speaking coach for a Spanish adult who is learning to speak English fluently. ' +
+    'The student said this out loud (it was transcribed by speech recognition):\n<<<' + text + '>>>\n\n' +
+    'Help them sound natural, fluent and correct in spoken ' + variety + ' English. Focus ONLY on: grammar errors, wrong or unnatural words (prepositions, false friends, literal translations from Spanish), and more idiomatic ways to say the same idea. ' +
+    'Do NOT comment on punctuation, capital letters or sentence length: it is speech, not writing. If a word looks like a speech-recognition mistake, assume the most likely intended word and do not count it as an error. ' +
+    'If the sentence is already correct and natural, set isPerfect to true, formal and natural to null, category to "ninguno", and praise it briefly. ' +
+    'Otherwise give two versions: "formal" (polished and professional) and "natural" (relaxed, how a native would say it to a friend, staying close to what the student meant). ' +
+    '"explanation": in SPANISH (Spain), short and clear (2-4 sentences), explaining the key mistakes and why, quoting the English words involved. ' +
+    '"category": the main type of improvement: "gramatica", "vocabulario" or "expresion". ' +
+    '"words": up to 4 useful English words or short phrases from your versions that the student should learn (empty array if none).';
 }
-function fillModels(ids){
-  const sel = $('fxModel'), cur = lsGet(GMODEL, 'gemini-flash-latest');
-  const list = [...new Set(['gemini-flash-latest', ...ids, cur])];
-  sel.innerHTML = list.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('');
-  sel.value = cur;
-}
-function keyUI(){
-  const has = !!lsGet(GKEY, '');
-  $('fxKeySum').textContent = has ? '🔑 Clave de Gemini · guardada ✓' : '🔑 Clave de Gemini · falta configurarla';
-  $('fxKeyBox').open = !has;
-  $('fxKey').value = ''; $('fxKey').placeholder = has ? 'Clave guardada. Pega otra para cambiarla.' : 'Pega aquí tu clave (empieza por AIza…)';
-}
-$('fxKeySave').onclick = async () => {
-  const k = $('fxKey').value.trim();
-  if (k) lsSet(GKEY, k);
-  if (!lsGet(GKEY, '')){ status($('fxKeyStatus'), 'Primero pega la clave.', 'err'); return; }
-  status($('fxKeyStatus'), 'Probando la clave…');
-  try {
-    const ids = await loadModels(); fillModels(ids);
-    status($('fxKeyStatus'), 'Clave correcta ✓ ' + ids.length + ' modelos Flash disponibles.', 'ok');
-    keyUI(); $('fxKeyBox').open = true;
-  } catch(e){ if (k) lsSet(GKEY, ''); status($('fxKeyStatus'), e.message, 'err'); keyUI(); }
-};
-$('fxKeyDel').onclick = () => { lsSet(GKEY, ''); keyUI(); status($('fxKeyStatus'), 'Clave borrada de este navegador.'); };
-$('fxModel').onchange = () => lsSet(GMODEL, $('fxModel').value);
+const jsonOnly = '\n\nAnswer ONLY with a valid JSON object, no other text, with exactly this shape:\n' + JSON_EXAMPLE;
 
 const FX_SCHEMA = {
   type: 'OBJECT',
@@ -1133,29 +1119,123 @@ const FX_SCHEMA = {
   required: ['isPerfect', 'formal', 'natural', 'explanation', 'category', 'words'],
   propertyOrdering: ['isPerfect', 'formal', 'natural', 'explanation', 'category', 'words']
 };
-async function askGemini(text){
-  const variety = prefs.accent === 'en-US' ? 'American' : 'British';
-  const prompt = 'You are a friendly English speaking coach for a Spanish adult who is learning to speak English fluently. ' +
-    'The student said this out loud (it was transcribed by speech recognition):\n<<<' + text + '>>>\n\n' +
-    'Help them sound natural, fluent and correct in spoken ' + variety + ' English. Focus ONLY on: grammar errors, wrong or unnatural words (prepositions, false friends, literal translations from Spanish), and more idiomatic ways to say the same idea. ' +
-    'Do NOT comment on punctuation, capital letters or sentence length: it is speech, not writing. If a word looks like a speech-recognition mistake, assume the most likely intended word and do not count it as an error. ' +
-    'If the sentence is already correct and natural, set isPerfect to true, formal and natural to null, category to "ninguno", and praise it briefly. ' +
-    'Otherwise give two versions: "formal" (polished and professional) and "natural" (relaxed, how a native would say it to a friend, staying close to what the student meant). ' +
-    '"explanation": in SPANISH (Spain), short and clear (2-4 sentences), explaining the key mistakes and why, quoting the English words involved. ' +
-    '"category": the main type of improvement: "gramatica", "vocabulario" or "expresion". ' +
-    '"words": up to 4 useful English words or short phrases from your versions that the student should learn (empty array if none).';
-  const d = await gFetch('models/' + encodeURIComponent(lsGet(GMODEL, 'gemini-flash-latest')) + ':generateContent', {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.4, responseMimeType: 'application/json', responseSchema: FX_SCHEMA }
-  });
-  const c = d.candidates && d.candidates[0];
-  const raw = c && c.content && c.content.parts ? c.content.parts.map(p => p.text || '').join('') : '';
-  if (!raw) throw new Error(c && c.finishReason === 'SAFETY' ? 'Gemini no ha querido responder a esa frase. Prueba con otra.' : 'Gemini no ha devuelto respuesta. Vuelve a probar.');
+
+const PROVS = {
+  gemini: {
+    name: 'Gemini', keyLS: 'ingles-gemini-key', modelLS: 'ingles-gemini-model', def: 'gemini-flash-latest', cors: true,
+    help: 'Gemini es la IA de Google y tiene capa gratuita. Saca tu clave en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> («Create API key»). En la capa gratuita Google puede usar lo que le mandas para mejorar sus productos: no escribas datos personales.',
+    ph: 'Clave de Gemini (empieza por AIza…)',
+    async models(key){
+      const d = await req(this, 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+      const ids = (d.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => m.name.replace(/^models\//, '')).filter(n => /^gemini-[\d.]+-flash(-lite)?$|^gemini-flash(-lite)?-latest$/.test(n));
+      const ver = n => parseFloat((n.match(/gemini-([\d.]+)/) || [0, 99])[1]);
+      return ids.sort((a, b) => ver(b) - ver(a) || (/lite/.test(a) ? 1 : 0) - (/lite/.test(b) ? 1 : 0));
+    },
+    async ask(text, model, key){
+      const d = await req(this, 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: coachPrompt(text) }] }], generationConfig: { temperature: 0.4, responseMimeType: 'application/json', responseSchema: FX_SCHEMA } })
+      });
+      const c = d.candidates && d.candidates[0];
+      if (c && c.finishReason === 'SAFETY') throw new Error('Gemini no ha querido responder a esa frase. Prueba con otra.');
+      return c && c.content && c.content.parts ? c.content.parts.map(p => p.text || '').join('') : '';
+    }
+  },
+  claude: {
+    name: 'Claude', keyLS: 'ingles-claude-key', modelLS: 'ingles-claude-model', def: '', cors: true,
+    help: 'Claude es la IA de Anthropic. Es de pago por uso (cada corrección cuesta muy poco). Saca tu clave en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> → «API Keys» → «Create Key». Los modelos Haiku son los más baratos y van de sobra para esto.',
+    ph: 'Clave de Claude (empieza por sk-ant-…)',
+    hdr(key){ return { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true', 'content-type': 'application/json' }; },
+    async models(key){
+      const d = await req(this, 'https://api.anthropic.com/v1/models?limit=100', { headers: this.hdr(key) });
+      const rank = { haiku: 0, sonnet: 1, opus: 2 };
+      const ms = (d.data || []).filter(m => (m.lifecycle || 'active') === 'active')
+        .filter(m => m.line ? m.line in rank : /haiku|sonnet|opus/.test(m.id));
+      const lineOf = m => m.line || (m.id.match(/haiku|sonnet|opus/) || ['opus'])[0];
+      ms.sort((a, b) => rank[lineOf(a)] - rank[lineOf(b)] || String(b.created_at).localeCompare(String(a.created_at)));
+      return ms.map(m => m.id);
+    },
+    async ask(text, model, key){
+      const d = await req(this, 'https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: this.hdr(key),
+        body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'user', content: coachPrompt(text) + jsonOnly }] })
+      });
+      return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    }
+  },
+  deepseek: {
+    name: 'DeepSeek', keyLS: 'ingles-deepseek-key', modelLS: 'ingles-deepseek-model', def: 'deepseek-flash', cors: false,
+    help: 'DeepSeek es de pago por uso y muy barato. Saca tu clave en <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a> → «API keys» y recarga unos pocos euros de saldo.',
+    ph: 'Clave de DeepSeek (empieza por sk-…)',
+    hdr(key){ return { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' }; },
+    async models(key){
+      const d = await req(this, 'https://api.deepseek.com/models', { headers: this.hdr(key) });
+      return (d.data || []).map(m => m.id).filter(id => !/vision/.test(id)).sort((a, b) => (/flash|chat/.test(b) ? 1 : 0) - (/flash|chat/.test(a) ? 1 : 0));
+    },
+    async ask(text, model, key){
+      const d = await req(this, 'https://api.deepseek.com/chat/completions', {
+        method: 'POST', headers: this.hdr(key),
+        body: JSON.stringify({ model, max_tokens: 2048, temperature: 0.4, response_format: { type: 'json_object' },
+          messages: [{ role: 'system', content: 'You reply only with JSON.' }, { role: 'user', content: coachPrompt(text) + jsonOnly }] })
+      });
+      const m = d.choices && d.choices[0] && d.choices[0].message;
+      return m ? (m.content || '') : '';
+    }
+  }
+};
+const provId = () => { const p = lsGet('ingles-ai-prov', 'gemini'); return PROVS[p] ? p : 'gemini'; };
+const prov = () => PROVS[provId()];
+const keyOf = p => lsGet(p.keyLS, '');
+const modelOf = p => lsGet(p.modelLS, p.def);
+
+function fillModels(ids){
+  const p = prov(), sel = $('fxModel'), cur = modelOf(p);
+  const list = [...new Set([p.def, ...ids, cur].filter(Boolean))];
+  sel.innerHTML = list.length ? list.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('') : '<option value="">(pulsa «Guardar y probar»)</option>';
+  sel.value = cur && list.includes(cur) ? cur : (list[0] || '');
+  if (!cur && list[0]) lsSet(p.modelLS, list[0]);
+}
+function keyUI(){
+  const p = prov(), has = !!keyOf(p);
+  $('fxProv').value = provId();
+  $('fxKeyHelp').innerHTML = p.help;
+  $('fxKeySum').textContent = '🤖 Corrige ' + p.name + (has ? ' · clave guardada ✓' : ' · falta su clave');
+  $('fxKey').value = '';
+  $('fxKey').placeholder = has ? 'Clave guardada. Pega otra para cambiarla.' : p.ph;
+  $('fxGo').textContent = '✨ Corregir con ' + p.name;
+}
+function refreshModels(){
+  const p = prov(); fillModels([]);
+  if (keyOf(p)) p.models(keyOf(p)).then(ids => { if (prov() === p) fillModels(ids); }).catch(() => {});
+}
+$('fxProv').onchange = () => { lsSet('ingles-ai-prov', $('fxProv').value); status($('fxKeyStatus'), ''); keyUI(); refreshModels(); };
+$('fxKeySave').onclick = async () => {
+  const p = prov(), k = $('fxKey').value.trim();
+  const prev = keyOf(p);
+  if (k) lsSet(p.keyLS, k);
+  if (!keyOf(p)){ status($('fxKeyStatus'), 'Primero pega la clave.', 'err'); return; }
+  status($('fxKeyStatus'), 'Probando la clave de ' + p.name + '…');
+  try {
+    const ids = await p.models(keyOf(p)); fillModels(ids);
+    status($('fxKeyStatus'), 'Clave correcta ✓ ' + ids.length + ' modelos disponibles.', 'ok');
+  } catch(e){ if (k) lsSet(p.keyLS, prev); status($('fxKeyStatus'), e.message, 'err'); }
+  keyUI(); $('fxKeyBox').open = true;
+};
+$('fxKeyDel').onclick = () => { const p = prov(); lsSet(p.keyLS, ''); keyUI(); status($('fxKeyStatus'), 'Clave de ' + p.name + ' borrada de este navegador.'); };
+$('fxModel').onchange = () => lsSet(prov().modelLS, $('fxModel').value);
+
+async function askAI(text){
+  const p = prov(), model = modelOf(p);
+  if (!model) throw new Error('Elige un modelo de ' + p.name + ' (pulsa «Guardar y probar»).');
+  const raw = await p.ask(text, model, keyOf(p));
+  if (!raw) throw new Error(p.name + ' no ha devuelto respuesta. Vuelve a probar.');
   const m = raw.match(/\{[\s\S]*\}/);
-  const j = JSON.parse(m ? m[0] : raw);
+  let j;
+  try { j = JSON.parse(m ? m[0] : raw); } catch(e){ throw new Error('La respuesta de ' + p.name + ' ha llegado rota. Vuelve a pulsar «Corregir».'); }
   if (j.isPerfect){ j.formal = null; j.natural = null; j.category = 'ninguno'; }
   if (!j.formal && !j.natural) j.isPerfect = true;
-  return { id: Date.now(), said: text, isPerfect: !!j.isPerfect, formal: j.formal || '', natural: j.natural || '', why: j.explanation || '', cat: CATS[j.category] ? j.category : 'expresion', words: (j.words || []).slice(0, 4), best: {} };
+  return { id: Date.now(), said: text, isPerfect: !!j.isPerfect, formal: j.formal || '', natural: j.natural || '', why: j.explanation || '', cat: CATS[j.category] ? j.category : 'expresion', words: (Array.isArray(j.words) ? j.words : []).slice(0, 4), best: {}, ai: p.name, model };
 }
 
 $('fxMic').onclick = () => {
@@ -1184,17 +1264,17 @@ $('fxClear').onclick = () => { $('fxIn').value = ''; $('fxOut').hidden = true; s
 $('fxGo').onclick = async () => {
   const text = $('fxIn').value.trim();
   if (!text){ status($('fxStatus'), 'Escribe o dicta una frase primero.', 'err'); return; }
-  if (!lsGet(GKEY, '')){ $('fxKeyBox').open = true; status($('fxStatus'), 'Falta tu clave de Gemini (arriba).', 'err'); return; }
+  if (!keyOf(prov())){ $('fxKeyBox').open = true; status($('fxStatus'), 'Falta tu clave de ' + prov().name + ' (arriba).', 'err'); return; }
   if (!/[a-z]/i.test(text)){ status($('fxStatus'), 'Eso no parece inglés.', 'err'); return; }
-  $('fxGo').disabled = true; status($('fxStatus'), 'Pensando… ✨');
+  $('fxGo').disabled = true; status($('fxStatus'), prov().name + ' está pensando… ✨');
   try {
-    const f = await askGemini(text.slice(0, 1200));
+    const f = await askAI(text.slice(0, 1200));
     S.fixes.push(f); save('fixes');
     fxCur = f; showFix(f); renderFixList();
     status($('fxStatus'), '');
     speak(f.natural || f.formal || f.said);
   } catch(e){
-    status($('fxStatus'), e instanceof SyntaxError ? 'La respuesta de Gemini ha llegado rota. Vuelve a pulsar «Corregir».' : (e.message === 'Failed to fetch' ? 'Sin conexión con Gemini. Comprueba internet.' : e.message), 'err');
+    status($('fxStatus'), e.message, 'err');
   } finally { $('fxGo').disabled = false; }
 };
 
@@ -1213,7 +1293,7 @@ function showFix(f){
   else {
     if (f.formal) h += fixCard(f, 'formal', '🎩 Formal');
     if (f.natural) h += fixCard(f, 'natural', '💬 Natural');
-    h += '<p class="why">💡 ' + esc(f.why) + '</p>';
+    h += '<p class="why">💡 ' + esc(f.why) + (f.ai ? ' <span class="note">· ' + esc(f.ai) + '</span>' : '') + '</p>';
   }
   if (f.words && f.words.length){
     h += '<div class="label">Palabras útiles · toca para añadirlas a «Palabras»</div><div class="chips">' +
@@ -1273,7 +1353,7 @@ function renderFixList(){
     const d = new Date(f.id);
     const it = document.createElement('div'); it.className = 'fitem';
     it.innerHTML = '<span class="bad">' + esc(f.said) + '</span><span class="good">' + esc(f.natural || f.formal) + '</span>' +
-      '<span class="meta"><span class="cat ' + f.cat + '">' + CATS[f.cat] + '</span>' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() +
+      '<span class="meta"><span class="cat ' + f.cat + '">' + CATS[f.cat] + '</span>' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() + (f.ai ? ' · ' + esc(f.ai) : '') +
       '<span class="grow"></span><button class="small ghost fxOpen">Abrir</button><button class="small ghost fxDel">✕</button></span>';
     it.querySelector('.fxOpen').onclick = () => { fxCur = f; $('fxIn').value = f.said; showFix(f); $('fxOut').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     const del = it.querySelector('.fxDel');
@@ -1293,8 +1373,8 @@ $('fxCsv').onclick = () => {
   if (!rows.length){ status($('fxStatus'), 'Todavía no hay frases que exportar.', 'err'); return; }
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
   const pct = v => v == null ? '' : String(Math.round(v * 100)).replace('.', ',');
-  const lines = [['Fecha', 'Lo que dije', 'Formal', 'Natural', 'Explicación', 'Tipo', 'Mejor formal %', 'Mejor natural %'].map(q).join(';')]
-    .concat(rows.map(f => { const d = new Date(f.id); return [d.toLocaleDateString('es-ES'), f.said, f.formal, f.natural, f.why, CATS[f.cat], pct(f.best && f.best.formal), pct(f.best && f.best.natural)].map(q).join(';'); }));
+  const lines = [['Fecha', 'Lo que dije', 'Formal', 'Natural', 'Explicación', 'Tipo', 'IA', 'Mejor formal %', 'Mejor natural %'].map(q).join(';')]
+    .concat(rows.map(f => { const d = new Date(f.id); return [d.toLocaleDateString('es-ES'), f.said, f.formal, f.natural, f.why, CATS[f.cat], f.ai || 'Gemini', pct(f.best && f.best.formal), pct(f.best && f.best.natural)].map(q).join(';'); }));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const d = new Date(), z = n => String(n).padStart(2, '0');
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -1303,8 +1383,8 @@ $('fxCsv').onclick = () => {
 };
 function renderFix(){ $('fxMic').disabled = !SR; renderFixList(); }
 function initFix(){
-  fillModels([]); keyUI(); renderFixList();
-  if (lsGet(GKEY, '')) loadModels().then(fillModels).catch(() => {});
+  keyUI(); refreshModels(); renderFixList();
+  $('fxKeyBox').open = !keyOf(prov());
 }
 
 /* ---------- Ajustes y arranque ---------- */
