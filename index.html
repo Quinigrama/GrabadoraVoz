@@ -176,6 +176,8 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
         <input type="range" id="rate" min="55" max="100" value="80" step="5"></label>
       <label for="gap">Pausa entre palabras <output id="gapo">110 ms</output>
         <input type="range" id="gap" min="0" max="500" value="110" step="10"></label>
+      <label for="minv">Alargar vocales cortas <output id="minvo">150 ms</output>
+        <input type="range" id="minv" min="0" max="350" value="150" step="10"></label>
     </div>
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
     <label class="check" for="unitsel"><input type="checkbox" id="unitsel" checked> Elegir la mejor versión de cada sílaba según dónde va</label>
@@ -959,6 +961,36 @@ function tightTrim(d, sr, head, tail){
   const a = Math.max(0, s * fr - Math.floor(sr * 0.005)), b = Math.min(d.length, (t + 1) * fr + Math.floor(sr * 0.01));
   return d.slice(a, b);
 }
+/* Quita los silencios largos que se quedan DENTRO de una sílaba (p. ej. «o» + hueco + inicio de la «y»),
+   que los recortes de los extremos no pueden eliminar porque hay sonido a los dos lados. */
+function squeezeGaps(d, sr, maxMs = 80, keepMs = 30){
+  const fr = Math.max(1, Math.floor(sr * 0.01)), e = frameRms(d, fr);
+  let mx = 0; for (const v of e) mx = Math.max(mx, v);
+  if (!mx || e.length < 4) return d;
+  const thr = mx * 0.06, maxF = Math.round(maxMs / 10), keep = Math.floor(sr * keepMs / 2000);
+  const cuts = [];
+  let s = -1;
+  for (let i = 0; i <= e.length; i++){
+    const low = i < e.length && e[i] < thr;
+    if (low && s < 0) s = i;
+    if (!low && s >= 0){
+      if (s > 0 && i < e.length && i - s > maxF) cuts.push([s * fr + keep, Math.min(d.length, i * fr) - keep]);
+      s = -1;
+    }
+  }
+  if (!cuts.length) return d;
+  const parts = []; let p = 0;
+  for (const [a, b] of cuts){ parts.push(d.subarray(p, a)); p = b; }
+  parts.push(d.subarray(p));
+  const xf = Math.floor(sr * 0.006), out = new Float32Array(d.length);
+  let pos = 0;
+  parts.forEach((q, k) => {
+    const o = k ? Math.min(xf, q.length, pos) : 0;
+    for (let j = 0; j < o; j++){ const t = j / o; out[pos - o + j] = out[pos - o + j] * (1 - t) + q[j] * t; }
+    out.set(q.subarray(o), pos); pos += q.length - o;
+  });
+  return out.slice(0, pos);
+}
 function levelMatch(d, sr){
   const e = env10(d, sr), mx = Math.max(...e);
   const loud = e.filter(v => v > mx * 0.3);
@@ -1163,7 +1195,7 @@ function prosodyPlan(ws, A){
 function build(ws){
   const a = ac(), sr = a.sampleRate;
   const polish = $('polish').checked, pros = polish && $('prosody').checked, A = $('pAmt').value / 100;
-  const xfMs = +$('xf').value, gap = +$('gap').value, rate = $('rate').value / 100;
+  const xfMs = +$('xf').value, gap = +$('gap').value, rate = $('rate').value / 100, minV = +$('minv').value / 1000;
   const xf = Math.floor(sr * xfMs / 1000), tolJ = Math.floor(sr * 0.01);
   const pp = pros ? prosodyPlan(ws, A) : null;
   let base = 0;
@@ -1180,8 +1212,8 @@ function build(ws){
     if (!c.fav) alt++;
     let d = resample(c.take.data, c.take.sr, sr);
     if (!polish) return { d, miss: false };
-    d = levelMatch(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr);
-    return { d, miss: false, f0: pros ? f0Of(c.take) : 0 };
+    d = levelMatch(squeezeGaps(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr), sr);
+    return { d, miss: false, f0: pros || minV > 0 ? f0Of(c.take) : 0 };
   }));
   let total = sr * 0.5;
   const plan = ws.map((w, wi) => {
@@ -1196,6 +1228,11 @@ function build(ws){
           const toP = st => Math.max(0.72, Math.min(1.4, base * Math.pow(2, st / 12) / s.f0));
           P = $('glide').checked ? [toP(q.st0), toP(q.st), toP(q.st1)] : toP(q.st);
         }
+      }
+      /* Sílaba que acaba en vocal y se queda muy corta (la «o» de «oye»): se alarga hasta un mínimo, «ooo-ye» */
+      if (minV > 0 && /[aeiouáéíóú]$/.test(w.syl[si])){
+        const len = s.d.length / sr, need = minV * (w.stress === si ? 1.15 : 1);
+        if (len > 0.04 && len * D < need) D = Math.min(2.5, need / len);
       }
       const moved = Array.isArray(P) ? P.some(v => Math.abs(v - 1) > 0.02) : Math.abs(P - 1) > 0.02;
       const d = s.f0 && (moved || D > 1.02) ? psola(s.d, sr, s.f0, P, D) : stretch(s.d, sr, D);
@@ -1499,7 +1536,7 @@ function sylAudio(w, j){
   const [a, b] = w.sylRanges[j];
   const d = gTake.data.slice(w.start + a, w.start + b);
   const isEdge = j === 0 || j === w.sylRanges.length - 1;
-  return isEdge ? (trimClip(d, gTake.sr, 0.04) || finish(d, gTake.sr)) : finish(d, gTake.sr);
+  return squeezeGaps(isEdge ? (trimClip(d, gTake.sr, 0.04) || finish(d, gTake.sr)) : finish(d, gTake.sr), gTake.sr);
 }
 function renderReview(){
   const box = $('gReview'); box.innerHTML = '';
@@ -1786,6 +1823,7 @@ $('audShare').onclick = async () => {
 };
 $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
+$('minv').oninput = () => $('minvo').textContent = +$('minv').value ? $('minv').value + ' ms' : 'no';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
 function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; }
 $('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
