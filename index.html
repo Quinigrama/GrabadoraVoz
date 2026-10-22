@@ -168,6 +168,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <button class="small" data-ex="Buenos días a todos.">Buenos días</button>
       <button class="small" data-ex="La casa es muy bonita.">La casa</button>
       <button class="small" data-ex="Quiero un café con leche, por favor.">Un café</button>
+      <button class="small primary" id="rndTxt" title="Inventa un texto nuevo de 3 a 5 frases">🎲 Texto al azar</button>
     </div>
     <div class="sliders">
       <label for="xf">Fundido entre sílabas <output id="xfo">35 ms</output>
@@ -1828,6 +1829,56 @@ $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
 function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; }
 $('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
 $('txt').oninput = renderTape;
+/* ---------- Texto al azar: pequeñas historias coherentes de 3 a 5 frases ---------- */
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const RT = {
+  quien: [['mi vecino Andrés','o'],['la abuela Carmen','a'],['mi primo Javier','o'],['mi amiga Lucía','a'],['el panadero del barrio','o'],['la profesora de música','a'],['mi hermano pequeño','o'],['nuestra vecina Rosa','a'],['el cartero','o'],['mi tía Pilar','a']],
+  cuando: ['Ayer por la tarde','El sábado pasado','Esta mañana','Hace unos días','El domingo temprano','Anoche, después de cenar','El lunes, al salir del trabajo'],
+  plan: [
+    ['fue al mercado','porque necesitaba fruta y verdura para toda la semana',['compró tomates, naranjas y un melón enorme','se encontró con un amigo del colegio al que no veía desde hacía años','probó un queso curado que le encantó']],
+    ['fue a la playa','porque hacía un día precioso',['dio un paseo largo por la orilla','se bañó aunque el agua estaba bastante fría','vio unos barcos de pesca volviendo al puerto']],
+    ['fue al pueblo de sus padres','porque había fiestas',['bailó en la plaza hasta muy tarde','comió una paella riquísima con toda la familia','vio los fuegos artificiales desde el puente']],
+    ['fue a la biblioteca','porque quería buscar un libro de cocina',['encontró una novela antigua de aventuras','estuvo leyendo un buen rato junto a la ventana','se apuntó a un club de lectura']],
+    ['salió a dar una vuelta por el parque','porque quería despejarse un poco',['vio a unos niños jugando al fútbol','dio de comer a los patos del estanque','se sentó en un banco a escuchar a los pájaros']],
+    ['fue al cine','porque estrenaban una película muy esperada',['se rio muchísimo con los actores','compró palomitas y un refresco','se encontró a unos vecinos en la fila de atrás']],
+    ['subió a la sierra','porque le apetecía caminar por el monte',['vio un ciervo entre los pinos','bebió agua fresca de una fuente','hizo muchas fotos del valle desde arriba']]
+  ],
+  giro: [
+    ['De repente empezó a llover con fuerza,','así que se refugió en una cafetería y pidió un chocolate caliente.'],
+    ['Por la tarde se levantó un viento muy frío,','así que decidió volver a casa antes de lo previsto.'],
+    ['Al rato se dio cuenta de que había perdido las llaves,','pero un señor muy amable las encontró en el suelo.'],
+    ['Como hacía mucho calor,','se compró un helado de limón y buscó una sombra.'],
+    ['Cuando ya se iba, sonó el teléfono,','y era su madre preguntando a qué hora volvería.'],
+    ['En el camino de vuelta se cruzó con un perro perdido,','y lo acompañó hasta que apareció su dueño.']
+  ],
+  final: ['Al llegar a casa se lo contó todo a su familia','Fue un día tranquilo, pero muy bonito','Dice que el próximo fin de semana quiere repetir','Esa noche se fue a dormir muy cansad{g}, pero feliz','Todavía se acuerda de ese día con una sonrisa'],
+  pregunta: ['Luego me llamó y me preguntó: ¿te apetece venir conmigo la próxima vez?','Al día siguiente me dijo: ¿por qué no vienes tú también?','Y yo me pregunto: ¿cuándo me invitará a mí?','']
+};
+function randomText(){
+  const [q, g] = pick(RT.quien), [va, porque, cosas] = pick(RT.plan);
+  const a = cosas.slice().sort(() => Math.random() - 0.5);
+  const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  const giro = pick(RT.giro);
+  const fr = [
+    pick(RT.cuando) + ', ' + q + ' ' + va + ' ' + porque + '.',
+    'Allí ' + a[0] + ' y después ' + a[1] + '.',
+    giro[0] + ' ' + giro[1],
+    pick(RT.final).replace('{g}', g) + '.',
+    pick(RT.pregunta)
+  ];
+  return fr.filter(Boolean).map(cap).join(' ');
+}
+function coverOf(t){
+  const syl = parseText(t).flatMap(w => w.syl);
+  return syl.length ? syl.filter(k => clips.has(k)).length / syl.length : 0;
+}
+$('rndTxt').onclick = () => {
+  /* De 30 textos inventados, elige al azar uno de los 5 con más sílabas ya grabadas */
+  const c = Array.from({ length: 30 }, randomText).map(t => ({ t, c: coverOf(t) })).sort((x, y) => y.c - x.c);
+  const best = c[Math.floor(Math.random() * 5)];
+  const ta = $('txt'); ta.value = best.t; ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; renderTape();
+  status($('playStatus'), '🎲 Texto nuevo: ' + Math.round(best.c * 100) + ' % de sus sílabas ya están grabadas.', best.c > 0.9 ? 'ok' : '');
+};
 document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('txt').value = b.dataset.ex; renderTape(); });
 
 /* ---------- Copia: botones ---------- */
