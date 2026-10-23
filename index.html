@@ -155,7 +155,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <a href="https://quinigrama.github.io/GrabadoraVoz/ingles.html" style="display:inline-block;font:600 13px var(--body);color:var(--accent);text-decoration:none;margin-bottom:8px">🇬🇧 Practicar inglés en voz alta →</a>
     <h1>Sílabas con Mi Voz</h1>
     <p>Lee en voz alta unas frases, la app las trocea en sílabas y luego las empalma para leer cualquier texto con tu voz.</p>
-    <div class="row" style="gap:8px;margin-top:10px"><span id="userBox"></span><button class="small" id="installBtn" hidden>📲 Instalar como app</button></div>
+    <div class="row" style="gap:8px;margin-top:10px"><span id="userBox"></span><span id="driveChip"></span><button class="small" id="installBtn" hidden>📲 Instalar como app</button></div>
     <p class="note" id="installHelp" hidden style="margin-top:8px"></p>
     <div id="bkNag" hidden style="margin-top:12px"></div>
   </header>
@@ -292,6 +292,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
       <div class="wl" id="worseList" hidden></div>
     </div>
     <div class="backup">
+      <div id="driveBox"></div>
       <div class="label">Copia de seguridad</div>
       <p class="note">Tus sílabas se guardan solo en este navegador, y cada aparato tiene su propio banco. Descarga una copia para guardarla donde quieras o pasarla al móvil, la tablet o el ordenador. Dentro del .zip, cada sílaba es un archivo .wav que puedes escuchar.</p>
       <div class="row">
@@ -322,6 +323,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
 </div>
 
 <script src="users.js"></script>
+<script src="drive.js"></script>
 <script>
 (() => {
 const U = window.MiVozUsers;
@@ -1908,12 +1910,9 @@ $('bkShare').onclick = async () => {
   try { await navigator.share({ files: [file], title: 'Mi voz en sílabas' }); status($('bkStatus'), 'Copia enviada.', 'ok'); bkDone(); }
   catch(e){ if (e && e.name !== 'AbortError') status($('bkStatus'), 'No se pudo enviar. Prueba con «Descargar copia».', 'err'); }
 };
-$('bkIn').onchange = async e => {
-  const files = [...e.target.files]; e.target.value = '';
-  if (!files.length) return;
-  const replace = $('bkReplace').checked;
+/* Importa una lista de archivos (sueltos o sacados de un .zip). Devuelve el resumen. */
+async function importItems(items, replace){
   let added = 0, replaced = 0, kept = 0, bad = 0, vers = 0;
-  status($('bkStatus'), 'Importando…');
   const put = async (name, blob, raw, meta) => {
     const file = name.split('/').pop(), mv = file.match(/^(.*?)~(\d+)(\.[^.]+)$/);
     const k = keyFromName(mv ? mv[1] + mv[3] : file);
@@ -1936,18 +1935,14 @@ $('bkIn').onchange = async e => {
       saveSyl(k, d, m.sr, meta);
     } catch(err){ bad++; }
   };
-  for (const f of files){
-    if (/\.zip$/i.test(f.name) || f.type === 'application/zip'){
-      try {
-        const entries = await readZip(await f.arrayBuffer());
-        let fichas = {};
-        const fj = entries.find(z => z.name.split('/').pop() === 'fichas.json');
-        if (fj){ try { fichas = JSON.parse(new TextDecoder().decode(fj.data)); } catch(err){} }
-        const wavs = entries.filter(z => z !== fj).sort((a, b) => /~\d+\./.test(a.name) - /~\d+\./.test(b.name));
-        for (const z of wavs) await put(z.name, new Blob([z.data]), true, fichas[z.name.split('/').pop()] || null);
-      }
-      catch(err){ bad++; }
-    } else await put(f.name, f, false, null);
+  for (const it of items){
+    if (it.zip){
+      let fichas = {};
+      const fj = it.zip.find(z => z.name.split('/').pop() === 'fichas.json');
+      if (fj){ try { fichas = JSON.parse(new TextDecoder().decode(fj.data)); } catch(err){} }
+      const wavs = it.zip.filter(z => z !== fj).sort((a, b) => /~\d+\./.test(a.name) - /~\d+\./.test(b.name));
+      for (const z of wavs) await put(z.name, new Blob([z.data]), true, fichas[z.name.split('/').pop()] || null);
+    } else await put(it.name, it.blob, false, null);
   }
   renderAll();
   const parts = [];
@@ -1956,8 +1951,40 @@ $('bkIn').onchange = async e => {
   if (vers) parts.push(vers + (vers === 1 ? ' versión extra' : ' versiones extra'));
   if (kept) parts.push(kept + (kept === 1 ? ' ya la tenías' : ' ya las tenías'));
   if (bad) parts.push(bad + (bad === 1 ? ' archivo no válido' : ' archivos no válidos'));
-  status($('bkStatus'), parts.length ? 'Importación terminada: ' + parts.join(', ') + '.' : 'No había nada que importar.', added || replaced || vers ? 'ok' : (bad ? 'err' : ''));
+  return { parts, ok: added || replaced || vers, bad };
+}
+$('bkIn').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  status($('bkStatus'), 'Importando…');
+  const items = [];
+  let broken = 0;
+  for (const f of files){
+    if (/\.zip$/i.test(f.name) || f.type === 'application/zip'){
+      try { items.push({ zip: await readZip(await f.arrayBuffer()) }); } catch(err){ broken++; }
+    } else items.push({ name: f.name, blob: f });
+  }
+  const r = await importItems(items, $('bkReplace').checked);
+  if (broken) r.parts.push(broken + (broken === 1 ? ' .zip dañado' : ' .zip dañados'));
+  status($('bkStatus'), r.parts.length ? 'Importación terminada: ' + r.parts.join(', ') + '.' : 'No había nada que importar.', r.ok ? 'ok' : (r.bad || broken ? 'err' : ''));
 };
+
+/* ---------- Google Drive ---------- */
+window.MiVozDrive && MiVozDrive.mount({
+  name: 'silabas', ext: 'zip', mime: 'application/zip', what: 'tus sílabas',
+  count: () => clips.size,
+  build: async () => buildBackup(),
+  apply: async (blob, mode) => {
+    let zip;
+    try { zip = await readZip(await blob.arrayBuffer()); } catch(err){ throw MiVozDrive.bad(); }
+    if (!zip.some(z => /\.wav$/i.test(z.name))) throw MiVozDrive.bad();
+    if (mode === 'replace'){ clearBank(); stopAll(); }
+    const r = await importItems([{ zip }], mode === 'replace');
+    const n = clips.size + ' sílabas';
+    return mode === 'replace' ? 'Traído de Drive: ' + n + '.' : 'He juntado lo de Drive con lo de este aparato (' + (r.parts.join(', ') || 'nada nuevo') + ').';
+  },
+  done: () => { nag && nag.refresh(); }
+}, $('driveBox'), $('driveChip'));
 
 window.addEventListener('resize', () => { drawWave($('wave'), lastWave, { contour: lastMarks }); drawG(); });
 (async () => {

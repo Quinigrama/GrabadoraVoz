@@ -116,7 +116,7 @@
 
   /* ---------- Aviso de copia de seguridad ---------- */
   const DAY = 864e5;
-  function changed(page){ LS.set(key('mvbk-chg-' + page), String(Date.now())); }
+  function changed(page){ LS.set(key('mvbk-chg-' + page), String(Date.now())); try { dispatchEvent(new CustomEvent('mivoz-changed', { detail: page })); } catch(e){} }
   function backedUp(page){ LS.set(key('mvbk-last-' + page), String(Date.now())); LS.del(key('mvbk-snooze-' + page)); }
   /* opts: { el, page, count(), what, run(), days } */
   function reminder(opts){
