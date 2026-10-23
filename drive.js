@@ -5,7 +5,7 @@
    El permiso que se pide (drive.file) solo deja ver los archivos que crea esta app, nada más de tu Drive. */
 (() => {
   /* ⇩⇩ Pega aquí el ID de cliente OAuth de Google Cloud (termina en .apps.googleusercontent.com) ⇩⇩ */
-  const CLIENT_ID = '';
+  const CLIENT_ID = '775415077551-v99g3415vpmd6vra392smfmv0q8meav3.apps.googleusercontent.com';
   /* ⇧⇧ ------------------------------------------------------------------------------------- ⇧⇧ */
 
   const SCOPE = 'https://www.googleapis.com/auth/drive.file';
