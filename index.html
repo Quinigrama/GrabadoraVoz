@@ -182,6 +182,8 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     </div>
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
     <label class="check" for="unitsel"><input type="checkbox" id="unitsel" checked> Elegir la mejor versión de cada sílaba según dónde va</label>
+    <label class="check" for="tilt"><input type="checkbox" id="tilt" checked> Igualar el timbre entre tomas: cada sílaba con el mismo equilibrio de graves y agudos que el resto de tu banco</label>
+    <label class="check" for="room"><input type="checkbox" id="room"> Ambiente de sala muy suave, para que todas las sílabas suenen en el mismo sitio</label>
     <label class="check" for="chain"><input type="checkbox" id="chain" checked> Encadenar palabras como al hablar: sin pausa dentro de la frase y uniendo vocales («quiero ir a otro» → «quierói raotro»). La pausa del deslizador queda para comas y puntos</label>
     <label class="check" for="prosody"><input type="checkbox" id="prosody" checked> Entonación de frase: acento de cada palabra, melodía, preguntas y final de frase</label>
     <div class="sliders" id="pBox">
@@ -1065,6 +1067,69 @@ function levelMatch(d, sr){
   const o = new Float32Array(d.length); for (let i = 0; i < d.length; i++) o[i] = d[i] * g;
   return o;
 }
+/* ---------- Timbre: equilibrio entre graves y agudos ----------
+   «Brillo» de una toma = parte de la energía por encima de 1,5 kHz, medida en sus trozos con voz.
+   Al montar la frase, cada sílaba se lleva al brillo típico de tu banco (como mucho ±6 dB). */
+const TILT_F = 1500, tiltCache = new WeakMap();
+function brightOf(t){
+  if (!t) return 0;
+  if (tiltCache.has(t)) return tiltCache.get(t);
+  const d = t.data, h = biquad(d, t.sr, 'hp', TILT_F, 0.707), fr = Math.max(1, Math.floor(t.sr * 0.01));
+  const fe = [];
+  for (let a = 0; a + fr <= d.length; a += fr){ let e = 0, eh = 0; for (let i = a; i < a + fr; i++){ e += d[i] * d[i]; eh += h[i] * h[i]; } fe.push([e, eh]); }
+  const mx = Math.max(0, ...fe.map(x => x[0]));
+  let E = 0, EH = 0; fe.forEach(([e, eh]) => { if (e > mx * 0.1){ E += e; EH += eh; } });
+  const r = E ? Math.min(0.95, Math.max(0.001, EH / E)) : 0;
+  tiltCache.set(t, r);
+  return r;
+}
+let tiltRef = { n: -1, r: 0 };
+function bankBright(){
+  const all = [...clips.keys()].flatMap(k => versions(k).map(v => v.take));
+  if (tiltRef.n !== all.length){
+    const rs = all.map(brightOf).filter(r => r > 0).sort((a, b) => a - b);
+    tiltRef = { n: all.length, r: rs.length ? rs[Math.floor(rs.length / 2)] : 0 };
+  }
+  return tiltRef.r;
+}
+function shelf(d, sr, g){
+  /* Filtro de estantería de agudos (shelf): sube o baja por igual todo lo que está por encima de 1,5 kHz */
+  const A = Math.sqrt(g), w = 2 * Math.PI * TILT_F / sr, c = Math.cos(w), al = Math.sin(w) / 2 * Math.SQRT2, q = 2 * Math.sqrt(A) * al;
+  const b0 = A * ((A + 1) + (A - 1) * c + q), b1 = -2 * A * ((A - 1) + (A + 1) * c), b2 = A * ((A + 1) + (A - 1) * c - q);
+  const a0 = (A + 1) - (A - 1) * c + q, a1 = 2 * ((A - 1) - (A + 1) * c), a2 = (A + 1) - (A - 1) * c - q;
+  const o = new Float32Array(d.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < d.length; i++){
+    const x = d[i], y = (b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+    o[i] = y; x2 = x1; x1 = x; y2 = y1; y1 = y;
+  }
+  return o;
+}
+const tiltGain = new WeakMap();
+function tiltMatch(d, sr, take, ref){
+  const r0 = brightOf(take);
+  if (!r0 || !ref) return d;
+  /* La ganancia se calcula una vez por toma, en dos pasadas para acercarse bien al brillo del banco */
+  const cached = tiltGain.get(take);
+  let g = cached && cached.ref === ref ? cached.g : undefined;
+  if (g === undefined){
+    const need = r => Math.sqrt(ref * (1 - r) / (r * (1 - ref)));
+    g = Math.max(0.5, Math.min(2, need(r0)));
+    const r1 = brightOf({ data: shelf(take.data, take.sr, g), sr: take.sr });
+    if (r1) g = Math.max(0.5, Math.min(2, g * need(r1)));
+    tiltGain.set(take, { g, ref });
+  }
+  return Math.abs(g - 1) < 0.06 ? d : shelf(d, sr, g);
+}
+/* Ambiente de sala: unos pocos ecos muy cortos y apagados (7 a 23 ms), como una habitación pequeña */
+function roomize(d, sr){
+  const taps = [[0.007, 0.10], [0.011, 0.08], [0.017, 0.06], [0.023, 0.045]];
+  const lp = new Float32Array(d.length), k = Math.exp(-2 * Math.PI * 3500 / sr);
+  let y = 0; for (let i = 0; i < d.length; i++){ y = (1 - k) * d[i] + k * y; lp[i] = y; }
+  const o = Float32Array.from(d);
+  taps.forEach(([t, g]) => { const n = Math.round(t * sr); for (let i = n; i < d.length; i++) o[i] += g * lp[i - n]; });
+  return o;
+}
 function stretch(x, sr, rate){
   const N = Math.floor(sr * 0.03), Hs = N >> 1, Ha = Hs / rate, tol = Math.floor(sr * 0.008);
   if (Math.abs(rate - 1) < 0.02 || x.length < N * 3) return x;
@@ -1286,6 +1351,7 @@ function build(ws){
   }
   const useSel = polish && $('unitsel').checked;
   const chain = polish && $('chain').checked, flat = pros && $('flat').checked;
+  const tRef = polish && $('tilt').checked ? bankBright() : 0;
   const V = /[aeiouáéíóú]$/, V0 = /^[aeiouáéíóú]/;
   /* Cómo se une cada palabra con la siguiente: pausa, sinalefa (vocal + vocal), enlace (consonante + vocal) o casi pegadas */
   const linkOf = wi => {
@@ -1302,7 +1368,9 @@ function build(ws){
     if (!c.fav) alt++;
     let d = resample(c.take.data, c.take.sr, sr);
     if (!polish) return { d, miss: false };
-    d = levelMatch(squeezeGaps(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr), sr);
+    d = squeezeGaps(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr);
+    if (tRef) d = tiltMatch(d, sr, c.take, tRef);
+    d = levelMatch(d, sr);
     return { d, miss: false, f0: pros || minV > 0 ? f0Of(c.take) : 0, f3: flat ? f0Tri(c.take) : null };
   }));
   let total = sr * 0.5;
@@ -1372,7 +1440,8 @@ function build(ws){
     const g = w.punct ? gap * 2.5 + 150 : link === 'cc' ? Math.min(gap, 15) : gap;
     if (g > 0){ pos += Math.floor(sr * g / 1000); prevClip = false; }
   });
-  const data = out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05)));
+  let data = out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05)));
+  if (polish && $('room').checked) data = roomize(data, sr);
   let pk = 0; for (const v of data) pk = Math.max(pk, Math.abs(v));
   if (pk > 0.98) for (let i = 0; i < data.length; i++) data[i] *= 0.98 / pk;
   return { data, marks, missing, alt };
@@ -1922,7 +1991,7 @@ $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('minv').oninput = () => $('minvo').textContent = +$('minv').value ? $('minv').value + ' ms' : 'no';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
-function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; $('chain').disabled = !$('polish').checked; }
+function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; $('chain').disabled = !$('polish').checked; $('tilt').disabled = !$('polish').checked; $('room').disabled = !$('polish').checked; }
 $('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
 $('txt').oninput = renderTape;
 /* ---------- Texto al azar: pequeñas historias coherentes de 3 a 5 frases ---------- */
