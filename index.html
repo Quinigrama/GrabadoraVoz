@@ -182,9 +182,11 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     </div>
     <label class="note" for="polish" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="polish" checked style="accent-color:var(--accent);width:16px;height:16px;margin:0"> Pulir uniones (desmárcalo para comparar con el empalme en bruto)</label>
     <label class="check" for="unitsel"><input type="checkbox" id="unitsel" checked> Elegir la mejor versión de cada sílaba según dónde va</label>
+    <label class="check" for="chain"><input type="checkbox" id="chain" checked> Encadenar palabras como al hablar: sin pausa dentro de la frase y uniendo vocales («quiero ir a otro» → «quierói raotro»). La pausa del deslizador queda para comas y puntos</label>
     <label class="check" for="prosody"><input type="checkbox" id="prosody" checked> Entonación de frase: acento de cada palabra, melodía, preguntas y final de frase</label>
     <div class="sliders" id="pBox">
       <label class="check" for="glide" style="color:var(--ink)"><input type="checkbox" id="glide" checked> Tono deslizante entre sílabas</label>
+      <label class="check" for="flat" style="color:var(--ink)"><input type="checkbox" id="flat" checked> Enderezar el tono de cada sílaba antes de darle la melodía (quita la caída de «lista» de leer palabra a palabra)</label>
       <label for="pAmt">Intensidad de la entonación <output id="pAmto">100 %</output>
         <input type="range" id="pAmt" min="0" max="200" step="10" value="100"></label>
     </div>
@@ -1071,6 +1073,23 @@ function f0Of(t){
   return f0Cache.get(t);
 }
 function clipF0(key){ return f0Of(clips.get(key)); }
+/* Tono al principio, en medio y al final de la sílaba. Si un trozo no se puede medir o sale disparatado
+   (un salto de octava), se usa el tono medio de toda la sílaba. */
+const f3Cache = new WeakMap();
+function f0Tri(t){
+  if (!t) return null;
+  if (f3Cache.has(t)) return f3Cache.get(t);
+  const f = f0Of(t), n = t.data.length;
+  let r = null;
+  if (f){
+    r = [[0, 0.45], [0.275, 0.725], [0.55, 1]].map(([a, b]) => {
+      const g = pitchOf(t.data.subarray(Math.floor(a * n), Math.floor(b * n)), t.sr);
+      return g && g > f * 0.7 && g < f * 1.4 ? g : f;
+    });
+  }
+  f3Cache.set(t, r);
+  return r;
+}
 function edgesOf(t){
   if (!edgeCache.has(t)){
     const d = t.data, n = Math.min(d.length, Math.floor(t.sr * 0.03));
@@ -1207,6 +1226,15 @@ function build(ws){
     base = fs.length ? fs[Math.floor(fs.length / 2)] : 0;
   }
   const useSel = polish && $('unitsel').checked;
+  const chain = polish && $('chain').checked, flat = pros && $('flat').checked;
+  const V = /[aeiouáéíóú]$/, V0 = /^[aeiouáéíóú]/;
+  /* Cómo se une cada palabra con la siguiente: pausa, sinalefa (vocal + vocal), enlace (consonante + vocal) o casi pegadas */
+  const linkOf = wi => {
+    const w = ws[wi], nx = ws[wi + 1];
+    if (w.punct || !nx || !chain) return null;
+    const a = V.test(w.syl[w.syl.length - 1]), b = V0.test(nx.syl[0]);
+    return a && b ? 'vv' : a || b ? 'cv' : 'cc';
+  };
   const chosen = useSel ? chooseTakes(ws, pp, base) : ws.map(w => w.syl.map(k => versions(k)[0] || null));
   let alt = 0;
   const stage = ws.map((w, wi) => w.syl.map((k, si) => {
@@ -1216,20 +1244,23 @@ function build(ws){
     let d = resample(c.take.data, c.take.sr, sr);
     if (!polish) return { d, miss: false };
     d = levelMatch(squeezeGaps(tightTrim(d, sr, si === 0 ? 0.03 : 0.07, si === w.syl.length - 1 ? 0.05 : 0.2), sr), sr);
-    return { d, miss: false, f0: pros || minV > 0 ? f0Of(c.take) : 0 };
+    return { d, miss: false, f0: pros || minV > 0 ? f0Of(c.take) : 0, f3: flat ? f0Tri(c.take) : null };
   }));
   let total = sr * 0.5;
   const plan = ws.map((w, wi) => {
     const parts = stage[wi].map((s, si) => {
       if (s.miss || !polish) return { d: s.d, miss: s.miss, st: null };
-      const last = si === w.syl.length - 1;
+      /* Con las palabras encadenadas, solo se alarga la última sílaba antes de una pausa */
+      const last = si === w.syl.length - 1 && (!chain || w.punct || wi === ws.length - 1);
       let D = last ? Math.min(1, (rate + 1) / 2) : rate, P = 1, g = 1;
       if (pros){
         const q = pp[wi][si];
         D *= q.dur; g = q.gain;
         if (base && s.f0){
-          const toP = st => Math.max(0.72, Math.min(1.4, base * Math.pow(2, st / 12) / s.f0));
-          P = $('glide').checked ? [toP(q.st0), toP(q.st), toP(q.st1)] : toP(q.st);
+          const toP = (st, f) => Math.max(0.72, Math.min(1.4, base * Math.pow(2, st / 12) / f));
+          const tg = $('glide').checked ? [q.st0, q.st, q.st1] : [q.st, q.st, q.st];
+          /* Enderezar: cada tercio de la sílaba se lleva a su nota, partiendo del tono que tenía ese tercio */
+          P = s.f3 ? tg.map((t, i) => toP(t, s.f3[i])) : $('glide').checked ? tg.map(t => toP(t, s.f0)) : toP(q.st, s.f0);
         }
       }
       /* Sílaba que acaba en vocal y se queda muy corta (la «o» de «oye»): se alarga hasta un mínimo, «ooo-ye» */
@@ -1245,15 +1276,17 @@ function build(ws){
     });
     parts.forEach(p => total += p.d.length);
     total += sr * (w.punct ? gap * 2.5 + 150 : gap) / 1000;
-    return { w, parts };
+    return { w, parts, link: linkOf(wi) };
   });
   const out = new Float32Array(Math.ceil(total));
-  let pos = 0, prevLen = 0, prevClip = false, missing = 0, idx = 0;
+  let pos = 0, prevLen = 0, prevClip = false, missing = 0, idx = 0, sinal = false;
   const marks = [];
-  plan.forEach(({ w, parts }) => {
-    parts.forEach(({ d, miss, st: tone }) => {
+  plan.forEach(({ w, parts, link }) => {
+    parts.forEach(({ d, miss, st: tone }, pi) => {
       if (miss) missing++;
-      let ov = prevClip ? Math.min(xf, Math.floor(d.length / 3), Math.floor(prevLen / 3)) : 0;
+      /* Sinalefa: las dos vocales se funden con un fundido más largo, como si fueran una sola sílaba */
+      const big = sinal && pi === 0;
+      let ov = prevClip ? Math.min(big ? Math.max(xf * 2, Math.floor(sr * 0.05)) : xf, Math.floor(d.length / (big ? 2 : 3)), Math.floor(prevLen / (big ? 2 : 3))) : 0;
       let start = Math.max(0, pos - ov);
       if (ov > 8 && polish){
         let best = -Infinity, bs = start;
@@ -1275,7 +1308,9 @@ function build(ws){
       marks.push({ idx: idx++, t0: start / sr, t1: (start + d.length) / sr, st: tone });
       pos = Math.max(pos, start + d.length); prevLen = d.length; prevClip = true;
     });
-    const g = w.punct ? gap * 2.5 + 150 : gap;
+    sinal = link === 'vv';
+    if (link === 'vv' || link === 'cv') return;   // sin pausa: la siguiente palabra se funde con esta
+    const g = w.punct ? gap * 2.5 + 150 : link === 'cc' ? Math.min(gap, 15) : gap;
     if (g > 0){ pos += Math.floor(sr * g / 1000); prevClip = false; }
   });
   const data = out.slice(0, Math.min(out.length, pos + Math.floor(sr * 0.05)));
@@ -1828,7 +1863,7 @@ $('xf').oninput = () => $('xfo').textContent = $('xf').value + ' ms';
 $('gap').oninput = () => $('gapo').textContent = $('gap').value + ' ms';
 $('minv').oninput = () => $('minvo').textContent = +$('minv').value ? $('minv').value + ' ms' : 'no';
 $('rate').oninput = () => $('rateo').textContent = $('rate').value + ' %';
-function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; }
+function pUI(){ $('pAmto').textContent = $('pAmt').value + ' %'; $('pBox').hidden = !$('prosody').checked; $('prosody').disabled = !$('polish').checked; $('unitsel').disabled = !$('polish').checked; $('chain').disabled = !$('polish').checked; }
 $('pAmt').oninput = pUI; $('prosody').onchange = pUI; $('polish').addEventListener('change', pUI); pUI();
 $('txt').oninput = renderTape;
 /* ---------- Texto al azar: pequeñas historias coherentes de 3 a 5 frases ---------- */
