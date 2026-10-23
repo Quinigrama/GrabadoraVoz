@@ -193,9 +193,9 @@
     const { box, chip } = view, on = !!LS.get(ON), who = LS.get(WHO, ''), pendingUp = on && localChanged();
     /* Botón pequeño de la cabecera */
     if (chip){
-      chip.hidden = !ready || !on;
-      chip.className = 'mvd-chip ' + (busy ? '' : !hasToken() || pendingUp ? 'warn' : 'ok');
-      chip.textContent = busy ? '☁️ Sincronizando…' : !hasToken() ? '☁️ Toca para sincronizar' : pendingUp ? '☁️ Cambios por subir' : '☁️ Drive al día';
+      chip.hidden = !ready;
+      chip.className = 'mvd-chip ' + (busy ? '' : !on ? 'ok' : !hasToken() || pendingUp ? 'warn' : 'ok');
+      chip.textContent = busy ? '☁️ Sincronizando…' : !on ? '☁️ Conectar con Google Drive' : !hasToken() ? '☁️ Toca para sincronizar' : pendingUp ? '☁️ Cambios por subir' : '☁️ Drive al día';
       chip.disabled = busy;
     }
     if (!box) return;
