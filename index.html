@@ -220,6 +220,7 @@ details p{margin:8px 0 0;color:var(--muted);font-size:14px;max-width:62ch}
     <div class="sylhint" id="gSyl"></div>
     <p class="note">Léela como si dictaras: <b>palabra a palabra, con una pausa corta entre cada una</b>, en tu tono normal. Di cada palabra <b>entera y de un tirón</b>, sin separarla en sílabas, sin alargar la última y sin pegarla a la siguiente. En el karaoke no hace falta ir clavado al tiempo: la app busca los silencios entre palabras, así que es mejor un hueco claro que ir deprisa.</p>
     <label class="check" for="kOn"><input type="checkbox" id="kOn" checked> Modo karaoke: te enseño las palabras una a una, a tu ritmo</label>
+    <label class="check" for="fineCut"><input type="checkbox" id="fineCut" checked> Cortes finos según la consonante: antes del golpe de p, t, k… y sin partir la s en dos</label>
     <label class="check" for="natG"><input type="checkbox" id="natG" class="natural" checked> Grabación natural: sin los filtros del navegador (recomendado en un sitio tranquilo)</label>
     <div class="sliders" id="kBox">
       <label for="kSpeed">Velocidad del karaoke <output id="kSpeedo">1,0×</output>
@@ -800,16 +801,70 @@ function biquad(d, sr, type, f0, Q){
 /* "Vocalidad" de cada trozo de 5 ms: energía en la zona de las vocales (300-2500 Hz),
    rebajada cuando domina el siseo agudo (s, z, f, j...). */
 const VP = { f: 700, q: 0.5, h: 3, dw: 3, th: 0.25 };
-/* Lo aprendido de tus ajustes con ✂: cuánto sueles mover cada tipo de corte (en segundos) */
-const CUT_TYPES = { abierta: 'tras vocal', cerrada: 'tras consonante', hiato: 'entre vocales' };
+/* Lo aprendido de tus ajustes con ✂: hacia dónde sueles mover cada tipo de corte, en proporción al
+   hueco entre las dos vocales (−0,3 = un 30 % del hueco hacia la izquierda). Así vale igual si hablas
+   más deprisa o más despacio. Se aprende por separado según la consonante que viene detrás. */
+const CUT_TYPES = { hiato: 'entre vocales', cerrada: 'tras consonante', oclusiva: 'antes de p, t, k, b, d, g, ch', fricativa: 'antes de s, f, z, j', sonorante: 'antes de m, n, l, r, ñ, y', grupo: 'antes de tr, pl, br…' };
 let cutBias = {};
-try { cutBias = JSON.parse(localStorage.getItem(U.key('scmv-cutbias')) || '{}') || {}; } catch(e){}
-function biasOf(type){ const b = cutBias[type]; return b && b.n >= 3 ? Math.max(-0.06, Math.min(0.06, b.m)) : 0; }
-function learnCut(type, offset){
+try { cutBias = JSON.parse(localStorage.getItem(U.key('scmv-cutbias2')) || 'null') || null; } catch(e){ cutBias = null; }
+if (!cutBias){
+  /* Lo aprendido con la versión anterior (en milisegundos) sirve de punto de partida, pero con poco peso */
+  cutBias = {};
+  try {
+    const old = JSON.parse(localStorage.getItem(U.key('scmv-cutbias')) || '{}') || {};
+    const conv = (b, to) => { if (b && b.n >= 3) to.forEach(t => cutBias[t] = { n: 3, m: Math.max(-0.5, Math.min(0.5, b.m / 0.08)) }); };
+    conv(old.hiato, ['hiato']); conv(old.cerrada, ['cerrada']); conv(old.abierta, ['oclusiva', 'fricativa', 'sonorante', 'grupo']);
+  } catch(e){}
+}
+function biasOf(type){ const b = cutBias[type]; return b && b.n >= 3 ? Math.max(-0.5, Math.min(0.5, b.m)) : 0; }
+function learnCut(type, ratio){
   const b = cutBias[type] || { n: 0, m: 0 };
-  b.n = Math.min(b.n + 1, 20); b.m += (offset - b.m) / b.n;
+  b.n = Math.min(b.n + 1, 20); b.m += (Math.max(-0.8, Math.min(0.8, ratio)) - b.m) / b.n;
   cutBias[type] = b;
-  try { localStorage.setItem(U.key('scmv-cutbias'), JSON.stringify(cutBias)); } catch(e){}
+  try { localStorage.setItem(U.key('scmv-cutbias2'), JSON.stringify(cutBias)); } catch(e){}
+}
+function cutFamily(prev, next){
+  const nc = consCount(prev, true), no = consCount(next, false);
+  if (nc + no === 0) return 'hiato';
+  if (nc > 0) return 'cerrada';
+  if (no >= 2) return 'grupo';
+  return /^(ch|qu|[ptkcbdg])/.test(next) ? 'oclusiva' : /^[sfzjx]/.test(next) ? 'fricativa' : 'sonorante';
+}
+/* Energía total y de agudos (> 3,5 kHz, el roce de la s) en trozos de 5 ms */
+function bandFrames(d, sr, hop){
+  const hi = biquad(d, sr, 'hp', 3500, 0.7), n = Math.max(1, Math.ceil(d.length / hop));
+  const e = new Float32Array(n), h = new Float32Array(n);
+  for (let f = 0; f < n; f++){
+    const a = f * hop, b = Math.min(d.length, a + 2 * hop);
+    let s1 = 0, s2 = 0; for (let i = a; i < b; i++){ s1 += d[i] * d[i]; s2 += hi[i] * hi[i]; }
+    const L = Math.max(1, b - a); e[f] = Math.sqrt(s1 / L); h[f] = Math.sqrt(s2 / L);
+  }
+  return { e, h };
+}
+/* Ajuste fino según la consonante del corte. Devuelve el trozo donde cortar, o null si no está claro. */
+function refineCut(fam, prev, c, off, on, a, b, ef, v){
+  const { e, h } = ef, lo = Math.max(a + 1, off - 2), hi = Math.min(b - 1, on + 2);
+  if (hi - lo < 4) return null;
+  const pk = Math.min(e[a], e[b]);
+  if (fam === 'oclusiva'){
+    /* La p, t, k… empieza con un silencio (la oclusión) y luego un golpe: se corta justo antes del golpe */
+    let m = lo; for (let f = lo; f <= hi; f++) if (e[f] < e[m]) m = f;
+    if (e[m] > pk * 0.2) return null;
+    let f = m; while (f < hi && e[f + 1] < Math.max(e[m] * 3, pk * 0.06)) f++;
+    return Math.max(m, f - 2);
+  }
+  const fric = f => h[f] > e[f] * 0.55 && e[f] > pk * 0.03;
+  if (fam === 'fricativa'){
+    /* La s entera va con la sílaba siguiente: se corta donde empieza el roce */
+    for (let f = lo; f <= hi - 2; f++) if (fric(f) && fric(f + 1) && fric(f + 2)) return Math.max(a + 1, f);
+    return null;
+  }
+  if (fam === 'cerrada' && /[sfzjx]$/.test(prev)){
+    /* «es-te»: la s se queda con la primera sílaba; se corta donde acaba el roce */
+    for (let f = hi; f >= lo + 2; f--) if (fric(f) && fric(f - 1) && fric(f - 2)) return Math.min(b - 1, f + 1);
+    return null;
+  }
+  return null;
 }
 function vowelCurve(d, sr){
   const hop = Math.max(1, Math.floor(sr * 0.005)), win = hop * 4;
@@ -861,7 +916,8 @@ function splitSyllables(d, sr, sylls){
   const pk = [];
   for (let j = k - 1; j >= 0; j--){ pk.unshift(M[bi]); bi = P[j][bi]; }
   /* Corte según la fonética: la consonante va con la sílaba que la lleva escrita */
-  const cuts = [0], sure = Array(k).fill(true), types = [];
+  const cuts = [0], sure = Array(k).fill(true), types = [], valleys = [];
+  const ef = $('fineCut') && $('fineCut').checked ? bandFrames(d, sr, hop) : null;
   for (let j = 0; j < k - 1; j++){
     const a = pk[j], b = pk[j+1], m = dipMin(a, b), base = v[m];
     let off = a; while (off < m && v[off] > base + VP.th * (v[a] - base)) off++;
@@ -871,9 +927,12 @@ function splitSyllables(d, sr, sylls){
     if (nc + no === 0) c = m;
     else c = off + (on - off) * nc / (nc + no);
     if (no > 0 && nc === 0) c = Math.max(a, c - 1);
-    const type = nc + no === 0 ? 'hiato' : nc === 0 ? 'abierta' : 'cerrada';
-    types.push(type);
-    c = Math.max(a + 1, Math.min(b - 1, c + biasOf(type) * sr / hop));
+    const type = cutFamily(sylls[j], sylls[j+1]);
+    if (ef){ const r = refineCut(type, sylls[j], c, off, on, a, b, ef, v); if (r != null) c = r; }
+    /* Lo aprendido se aplica en proporción al hueco entre vocales (mínimo 40 ms) */
+    const gapF = Math.max(on - off, 0.04 * sr / hop);
+    types.push(type); valleys.push(gapF * hop / sr);
+    c = Math.max(a + 1, Math.min(b - 1, c + biasOf(type) * gapF));
     cuts.push(Math.round(c * hop));
     const depth = (Math.min(v[a], v[b]) - base) / Math.min(v[a], v[b]);
     if (depth < 0.2){ sure[j] = false; sure[j+1] = false; }
@@ -881,7 +940,7 @@ function splitSyllables(d, sr, sylls){
   cuts.push(d.length);
   const ranges = cuts.slice(0, -1).map((c, i) => [c, cuts[i+1]]);
   ranges.forEach(([s, e], i) => { const t = (e - s) / sr; if (t < 0.06 || t > 0.8) sure[i] = false; });
-  return { ranges, sure, types };
+  return { ranges, sure, types, valleys };
 }
 
 function segmentByTiming(d, sr, times, n){
@@ -1564,7 +1623,7 @@ async function processTake(blob, times){
   gTake = { data, sr, ok: true, words: segs.map(([a, b], i) => {
     const seg = data.subarray(a, b);
     const sp = splitSyllables(seg, sr, ws[i].syl);
-    return { start: a, end: b, word: ws[i], sylRanges: sp.ranges, sure: sp.sure, types: sp.types || [], auto: sp.ranges.map(r => r[0]), touched: new Set() };
+    return { start: a, end: b, word: ws[i], sylRanges: sp.ranges, sure: sp.sure, types: sp.types || [], valleys: sp.valleys || [], auto: sp.ranges.map(r => r[0]), touched: new Set() };
   }) };
   closeEdit(); drawG(); renderGuided(); renderReview();
   const nd = gTake.words.reduce((t, w) => t + w.sure.filter(x => !x).length, 0), lv = levelReport(data);
@@ -1626,7 +1685,7 @@ function openEdit(w){
   const box = $('gEditSyl'); box.innerHTML = '';
   w.word.syl.forEach((s, j) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = '▶ ' + s; b.onclick = () => playData(sylAudio(w, j)); box.append(b); });
   $('gEditBox').hidden = false;
-  const learnt = Object.entries(cutBias).filter(([, b]) => b.n >= 3).map(([t, b]) => 'cortes ' + CUT_TYPES[t] + ' ' + (b.m >= 0 ? '+' : '−') + Math.round(Math.abs(Math.max(-0.06, Math.min(0.06, b.m))) * 1000) + ' ms');
+  const learnt = Object.entries(cutBias).filter(([t, b]) => b.n >= 3 && CUT_TYPES[t] && Math.abs(biasOf(t)) >= 0.02).map(([t]) => CUT_TYPES[t] + ' ' + (biasOf(t) > 0 ? 'un poco más tarde' : 'un poco antes') + ' (' + Math.round(Math.abs(biasOf(t)) * 100) + ' % del hueco)');
   $('gLearn').textContent = learnt.length ? '🧠 Ya aprendí de tus ajustes y corrijo solo: ' + learnt.join(' · ') + '.' : '🧠 Cuando guardes, la app aprende de cómo mueves los cortes: tras unos cuantos ajustes del mismo tipo, empezará a corregirlos sola.';
   drawEdit();
   $('gEditBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1676,8 +1735,8 @@ $('gEdit').addEventListener('pointercancel', endDrag);
 $('gEditClose').onclick = () => { closeEdit(); };
 $('gSave').onclick = () => {
   gTake.words.forEach(w => (w.touched || []).forEach(i => {
-    const type = w.types[i - 1]; if (!type) return;
-    learnCut(type, biasOf(type) + (w.sylRanges[i][0] - w.auto[i]) / gTake.sr);
+    const type = w.types[i - 1], gapS = w.valleys[i - 1]; if (!type || !gapS || !CUT_TYPES[type]) return;
+    learnCut(type, biasOf(type) + (w.sylRanges[i][0] - w.auto[i]) / gTake.sr / gapS);
   }));
   let n = 0;
   let nv = 0;
