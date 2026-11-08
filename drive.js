@@ -23,6 +23,17 @@
 
   let token = null, tokenExp = 0, tc = null, pend = null, folder = null;
   let page = null, busy = false, timer = null, view = null;
+  let forceConsent = false;   // tras un permiso incompleto, la siguiente ventana de Google vuelve a mostrar la casilla
+
+  /* La conexión con Google se recuerda en esta pestaña (sessionStorage, se borra al cerrarla):
+     así no hay que volver a conectar al recargar ni al pasar de Sílabas a Inglés. */
+  const SS_TOKEN = 'mvdrive-token';
+  try {
+    const sv = JSON.parse(sessionStorage.getItem(SS_TOKEN) || 'null');
+    if (sv && sv.t && sv.exp > Date.now()){ token = sv.t; tokenExp = sv.exp; }
+  } catch(e){}
+  function keepToken(){ try { sessionStorage.setItem(SS_TOKEN, JSON.stringify({ t: token, exp: tokenExp })); } catch(e){} }
+  function dropToken(){ token = null; tokenExp = 0; try { sessionStorage.removeItem(SS_TOKEN); } catch(e){} }
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'usuario';
@@ -52,8 +63,9 @@
         const p = pend; pend = null;
         if (!p) return;
         if (r.error || !r.access_token) return p.ko(fail('denied'));
-        if (google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return p.ko(fail('scope'));
-        token = r.access_token; tokenExp = Date.now() + (+r.expires_in || 3600) * 1000;
+        if (google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)){ forceConsent = true; return p.ko(fail('scope')); }
+        forceConsent = false;
+        token = r.access_token; tokenExp = Date.now() + (+r.expires_in || 3600) * 1000; keepToken();
         LS.set(ON, '1'); p.ok(token);
       },
       error_callback: e => { const p = pend; pend = null; p && p.ko(fail(e && e.type === 'popup_closed' ? 'closed' : 'denied')); }
@@ -66,7 +78,7 @@
     return new Promise((ok, ko) => {
       if (pend) pend.ko(fail('closed'));
       pend = { ok, ko };
-      const o = { prompt: LS.get(ON) ? '' : 'consent' };
+      const o = { prompt: LS.get(ON) && !forceConsent ? '' : 'consent' };
       const who = LS.get(WHO, ''); if (who) o.hint = who;
       tc.requestAccessToken(o);
     });
@@ -76,11 +88,26 @@
     let r;
     try { r = await fetch(url, { ...opt, headers: { ...(opt.headers || {}), Authorization: 'Bearer ' + token } }); }
     catch(e){ throw fail('net'); }
-    if (r.status === 401){ token = null; throw fail('auth'); }
-    if (r.status === 403 && /storageQuotaExceeded/.test(await r.clone().text().catch(() => ''))) throw fail('full');
-    if (!r.ok) throw fail('http', 'Drive respondió ' + r.status);
+    if (r.status === 401){ dropToken(); throw fail('auth'); }
+    if (!r.ok) throw await errorFrom(r);
     return r;
   }
+  /* Traduce el error de Google a un código claro y guarda su motivo («accessNotConfigured», etc.) para mostrarlo */
+  async function errorFrom(r){
+    let reason = '', message = '';
+    try {
+      const e = ((await r.json()) || {}).error || {};
+      reason = (e.errors && e.errors[0] && e.errors[0].reason) || ((e.details || []).find(d => d && d.reason) || {}).reason || e.status || '';
+      message = e.message || '';
+    } catch(e){}
+    const detail = 'Drive respondió ' + r.status + (reason ? ' · ' + reason : '');
+    if (/storageQuotaExceeded|quotaExceeded/i.test(reason)) return fail('full', detail);
+    if (/accessNotConfigured|SERVICE_DISABLED/i.test(reason) || /has not been used|is disabled/i.test(message)) return fail('api', detail);
+    if (/insufficientPermissions|insufficientScopes|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(reason)){ dropToken(); forceConsent = true; return fail('scope', detail); }
+    if (r.status === 429 || /rateLimitExceeded|userRateLimitExceeded|RATE_LIMIT_EXCEEDED/i.test(reason)) return fail('rate', detail);
+    return fail('http', detail);
+  }
+  const SCOPE_MSG = 'No se marcó la casilla de Google Drive en la ventana de Google. Toca «Sincronizar» y marca la casilla para permitir el acceso.';
   const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
   async function list(query, fields){
     const u = API + '/files?spaces=drive&orderBy=modifiedTime%20desc&pageSize=10&fields=' + encodeURIComponent('files(' + fields + ')') + '&q=' + encodeURIComponent(query);
@@ -114,7 +141,7 @@
     try {
       const u = (await (await api(API + '/about?fields=user(emailAddress)')).json()).user;
       if (u && u.emailAddress) LS.set(WHO, u.emailAddress);
-    } catch(e){}
+    } catch(e){ if (e.code === 'scope' || e.code === 'api') throw e; }   // el email no es crítico, estos dos errores sí
   }
 
   /* ---------- Sincronizar ---------- */
@@ -123,8 +150,8 @@
     if (!ready || busy) return;
     if (interactive){
       try { await askToken(); }
-      catch(e){ say(e.code === 'closed' ? 'Has cerrado la ventana de Google sin conectar.' : 'Google no ha dado permiso para usar Drive.', 'err'); return; }
-    } else if (!hasToken()) return render();
+      catch(e){ say(e.code === 'closed' ? 'Has cerrado la ventana de Google sin conectar.' : e.code === 'gis' || e.code === 'net' ? 'No se ha podido cargar el acceso de Google. Revisa la conexión.' : e.code === 'scope' ? SCOPE_MSG : 'Google no ha dado permiso para usar Drive.', 'err'); return; }
+    } else if (!hasToken() || !navigator.onLine) return render();
     busy = true; clearTimeout(timer); render('Sincronizando con Drive…');
     try {
       if (!LS.get(WHO)) await whoAmI();
@@ -155,6 +182,9 @@
       say(e.code === 'auth' ? 'La conexión con Google ha caducado. Toca «Sincronizar» para seguir.'
         : e.code === 'net' ? 'Sin conexión con Google. Lo intento otra vez cuando vuelvas a tocar «Sincronizar».'
         : e.code === 'full' ? 'Tu Google Drive está lleno: no cabe la copia.'
+        : e.code === 'api' ? 'La API de Google Drive no está activada en el proyecto de Google Cloud de la app. Hay que activarla en «APIs y servicios → Biblioteca» (' + e.message + ').'
+        : e.code === 'scope' ? SCOPE_MSG
+        : e.code === 'rate' ? 'Google Drive está recibiendo demasiadas peticiones seguidas. Espera un minuto y vuelve a sincronizar.'
         : e.code === 'bad' ? 'El archivo de Drive no es una copia válida de esta página. No he tocado nada.'
         : 'No se pudo sincronizar (' + (e.message || 'error') + ').', 'err');
     }
@@ -168,10 +198,13 @@
   addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && timer && hasToken()){ clearTimeout(timer); sync(); }
   });
+  /* Sin internet los cambios esperan en el aparato; al volver la conexión se suben solos. */
+  addEventListener('online', () => { if (page && LS.get(ON) && hasToken() && localChanged() && !busy) sync(); else render(); });
+  addEventListener('offline', () => render());
 
   function disconnect(){
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch(e){}
-    token = null; folder = null; LS.del(ON); LS.del(WHO); clearTimeout(timer);
+    dropToken(); folder = null; forceConsent = false; LS.del(ON); LS.del(WHO); clearTimeout(timer);
     say('Desconectado de Google Drive. Tus copias siguen en la carpeta ' + FOLDER + ' de tu Drive.', '');
   }
 
@@ -184,18 +217,21 @@
 .mvd .row{display:flex;flex-wrap:wrap;gap:8px}
 .mvd-chip{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--body);padding:7px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
 .mvd-chip.warn{border-color:#E0A030;background:color-mix(in srgb,#E0A030 14%,var(--surface))}
-.mvd-chip.ok{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}`;
+.mvd-chip.ok{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
+.mvd-chip.err{border-color:#C0392B;background:color-mix(in srgb,#C0392B 12%,var(--surface))}`;
   document.head.append(css);
   let last = { msg: '', kind: '' };
   function say(msg, kind){ last = { msg, kind }; render(); }
   function render(working){
     if (!view) return;
     const { box, chip } = view, on = !!LS.get(ON), who = LS.get(WHO, ''), pendingUp = on && localChanged();
+    const offline = on && !navigator.onLine, failed = on && !busy && last.kind === 'err' && hasToken();
     /* Botón pequeño de la cabecera */
     if (chip){
       chip.hidden = !ready;
-      chip.className = 'mvd-chip ' + (busy ? '' : !on ? 'ok' : !hasToken() || pendingUp ? 'warn' : 'ok');
-      chip.textContent = busy ? '☁️ Sincronizando…' : !on ? '☁️ Conectar con Google Drive' : !hasToken() ? '☁️ Toca para sincronizar' : pendingUp ? '☁️ Cambios por subir' : '☁️ Drive al día';
+      chip.className = 'mvd-chip ' + (busy ? '' : !on ? 'ok' : failed ? 'err' : offline || !hasToken() || pendingUp ? 'warn' : 'ok');
+      chip.textContent = busy ? '☁️ Sincronizando…' : !on ? '☁️ Conectar con Google Drive' : failed ? '☁️ Error en Drive · toca para ver'
+        : offline ? (pendingUp ? '☁️ Sin conexión · cambios pendientes' : '☁️ Sin conexión') : !hasToken() ? '☁️ Toca para sincronizar' : pendingUp ? '☁️ Cambios por subir' : '☁️ Drive al día';
       chip.disabled = busy;
     }
     if (!box) return;
@@ -211,7 +247,7 @@
       const st = getState();
       h += '<p class="note">' + (who ? 'Conectado como <b>' + esc(who) + '</b>. ' : 'Conectado. ') + 'Archivo: ' + FOLDER + '/' + esc(fileName()) + '.' +
         (st.at ? ' Última sincronización: ' + new Date(st.at).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) + '.' : '') + '</p>' +
-        '<p class="note">Al abrir la app, toca «Sincronizar» para traer lo último. Mientras la tengas abierta, lo que grabes se sube solo.</p>' +
+        '<p class="note">Mientras la tengas abierta, lo que cambies se sube solo; si no hay internet, espera en este aparato y se sube al volver la conexión. Al recargar o pasar de Sílabas a Inglés sigue conectada. Si Google cierra la conexión (más o menos al cabo de una hora), toca «Sincronizar» y sigue.</p>' +
         '<div class="row"><button class="primary" data-a="sync"' + (busy ? ' disabled' : '') + '>⇅ Sincronizar ahora</button>' +
         '<button class="ghost" data-a="off"' + (busy ? ' disabled' : '') + '>Desconectar</button></div>';
     }
@@ -225,7 +261,15 @@
     const box = boxEl ? Object.assign(document.createElement('div'), { className: 'mvd' }) : null;
     if (box) boxEl.append(box);
     let chip = null;
-    if (chipEl){ chip = document.createElement('button'); chip.type = 'button'; chip.hidden = true; chip.onclick = () => sync({ interactive: true }); chipEl.append(chip); }
+    if (chipEl){
+      chip = document.createElement('button'); chip.type = 'button'; chip.hidden = true;
+      /* Con un error, el botón lleva al recuadro de Drive, donde se explica qué pasa. Si no, sincroniza. */
+      chip.onclick = () => {
+        if (LS.get(ON) && last.kind === 'err' && hasToken() && view.box){ view.box.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+        sync({ interactive: true });
+      };
+      chipEl.append(chip);
+    }
     if (box) box.addEventListener('click', e => {
       const a = e.target.closest('[data-a]'); if (!a) return;
       if (a.dataset.a === 'sync') sync({ interactive: true }); else disconnect();
@@ -233,6 +277,8 @@
     view = { box, chip };
     render();
     if (ready) loadGis().then(initClient).catch(() => {});
+    /* Si la conexión con Google sigue abierta en esta pestaña, sincroniza sola al abrir la página. */
+    if (ready && LS.get(ON) && hasToken()) setTimeout(() => sync(), 600);
   }
   const err = code => fail(code);
   window.MiVozDrive = { mount, sync, bad: () => err('bad') };
