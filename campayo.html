@@ -484,7 +484,7 @@ details p{margin:8px 0 0}
       </div>
       <span class="status" id="aiSt"></span>
     </details>
-    <p class="note">Basado en el libro <i>Aprende un idioma en 7 días</i>, de Ramón Campayo, y en los diálogos del método Assimil. Las tablas de ejemplo son para repartidores: puerta, edificio y problemas de entrega.</p>
+    <p class="note">Basado en el libro <i>Aprende un idioma en 7 días</i>, de Ramón Campayo, y en los diálogos del método Assimil. Las tablas de ejemplo son para repartidores: puerta, edificio, problemas de entrega y pagos y horas.</p>
   </section>
 </div>
 <script src="users.js"></script>
@@ -567,10 +567,30 @@ const SEED = [
     ['¿Yo poder venir otra vez mañana?', 'Can I come again tomorrow?'],
     ['La dirección estar mal.', 'The address is wrong.'],
     ['¿Usted necesitar ayuda?', 'Do you need help?']
-  ], dialog: "Driver: Hello, I'm calling about your parcel. Nobody is at home.\nCustomer: Oh, sorry! I'm at work. Can you come later?\nDriver: I can come again tomorrow morning.\nCustomer: Can you leave it with my neighbour?\nDriver: Yes, of course. Which flat is it?\nCustomer: Second floor, flat B. Thank you!" }
+  ], dialog: "Driver: Hello, I'm calling about your parcel. Nobody is at home.\nCustomer: Oh, sorry! I'm at work. Can you come later?\nDriver: I can come again tomorrow morning.\nCustomer: Can you leave it with my neighbour?\nDriver: Yes, of course. Which flat is it?\nCustomer: Second floor, flat B. Thank you!" },
+  { id: 't4', title: '💶 Pagos y horas', rows: [
+    ['cash', 'kash', 'efectivo', 'El cantante cobra su CACHÉ en EFECTIVO: billetes saliendo por las orejas.'],
+    ['card', 'kard', 'tarjeta', 'Paso la TARJETA y del datáfono brota un CARDO lleno de pinchos.'],
+    ['change', 'chéinch', 'cambio (vuelta)', 'Me dan el CAMBIO en CHINCHETAS y me pincho la mano.'],
+    ['money', 'máni', 'dinero', 'Me pagan con DINERO de MANÍ: billetes de cacahuete que se comen las palomas.'],
+    ['pay', 'péi', 'pagar', 'Para PAGAR, el cliente me da un PEZ vivo que coletea en mi mano.'],
+    ['price', 'práis', 'precio', 'El PRECIO del pedido es tan alto que me da para un viaje a PARÍS.'],
+    ['receipt', 'risíit', 'recibo', 'Leo el RECIBO y me entra una RISITA tonta que no puedo parar.'],
+    ['hour', 'áuar', 'hora', 'Cada HORA en punto, un lobo AÚLLA en el portal: «¡auuuar!»'],
+    ['minute', 'mínit', 'minuto', 'Espere un MINUTO, que saco la MINI-pizza del horno.'],
+    ['today', 'tudéi', 'hoy', 'HOY es fiesta TODO EL DÍA: «tu-déi».'],
+    ['number', 'námber', 'número', 'Ver tantos NÚMEROS en los portales me da un HAMBRE terrible: «námber».'],
+    ['free', 'fríi', 'gratis', 'Hoy el helado es GRATIS, pero está tan FRÍO que se me congelan los dientes.']
+  ], frases: [
+    ['¿Usted pagar en efectivo o con tarjeta?', 'Cash or card?'],
+    ['El precio ser quince euros.', "It's fifteen euros."],
+    ['Yo no tener cambio.', "I don't have change."],
+    ['Yo llegar en diez minutos.', "I'll be there in ten minutes."],
+    ['¿Usted querer el recibo?', 'Do you want the receipt?']
+  ], dialog: "Driver: Hello! Your order is twenty-three euros fifty.\nCustomer: Can I pay by card?\nDriver: Sorry, it's cash only today.\nCustomer: OK. Here's thirty euros.\nDriver: Thank you. Here's your change and your receipt.\nCustomer: Thanks! And this is for you.\nDriver: Oh, thank you very much! Have a nice evening." }
 ];
-function seedTables(){
-  return SEED.map(t => ({
+function seedTables(ids){
+  return SEED.filter(t => !ids || ids.includes(t.id)).map(t => ({
     id: t.id, title: t.title, plan: {}, dialog: t.dialog,
     rows: t.rows.map(([en, fig, es, asoc], i) => ({ id: 'r' + (i + 1), en, fig, es, asoc })),
     frases: t.frases.map(([es, en], i) => ({ id: 'f' + (i + 1), es, en }))
@@ -1590,6 +1610,11 @@ window.MiVozDrive && MiVozDrive.mount({
   S.cards = c || {};
   (keys || []).forEach(k => AUD.add(k));
   if (!t) kvPut('tables', S.tables);
+  /* Tablas de ejemplo que se han añadido después: entran una sola vez (si las borras, no vuelven) */
+  const seeded = (await kvGet('seeded')) || (t ? ['t1', 't2', 't3'] : SEED.map(x => x.id));
+  const nuevas = SEED.map(x => x.id).filter(id => !seeded.includes(id) && !S.tables.some(x => x.id === id));
+  if (nuevas.length){ S.tables.push(...seedTables(nuevas)); kvPut('tables', S.tables); }
+  kvPut('seeded', SEED.map(x => x.id));
   if (!S.tables.some(x => x.id === prefs.cur) && S.tables[0]) prefs.cur = S.tables[0].id;
   if (!SR) $('pMic').title = 'Para comprobar la pronunciación abre la página en Chrome';
   nag = U.reminder({ el: $('bkNag'), page: 'campayo', what: 'grabaciones y tablas', min: 6, count: () => AUD.size, run: () => $('bkDown').click() });
