@@ -27,7 +27,7 @@
   function rename(id, name){ const l = list(), u = l.find(x => x.id === id); if (u){ u.name = name; saveList(l); } }
   function remove(id){
     if (id === MAIN) return;
-    ['silabas-con-mi-voz', 'ingles-en-voz-alta'].forEach(b => { try { indexedDB.deleteDatabase(dbName(b, id)); } catch(e){} });
+    ['silabas-con-mi-voz', 'ingles-en-voz-alta', 'metodo-campayo'].forEach(b => { try { indexedDB.deleteDatabase(dbName(b, id)); } catch(e){} });
     try { Object.keys(localStorage).filter(k => k.endsWith('@' + id)).forEach(k => LS.del(k)); } catch(e){}
     saveList(list().filter(u => u.id !== id));
   }
@@ -68,7 +68,7 @@
       wrap.append(chip);
       if (!open) return;
       const p = document.createElement('div'); p.className = 'mvu-panel';
-      p.innerHTML = '<div class="label">¿Quién usa la app?</div><p class="note" style="margin:0">Cada persona tiene sus propias sílabas, versiones, textos de inglés y ajustes. Al cambiar, lo de cada uno queda guardado hasta que vuelva.</p>';
+      p.innerHTML = '<div class="label">¿Quién usa la app?</div><p class="note" style="margin:0">Cada persona tiene sus propias sílabas, versiones, textos de inglés, tablas del método Campayo y ajustes. Al cambiar, lo de cada uno queda guardado hasta que vuelva.</p>';
       l.forEach(u => {
         const row = document.createElement('div'); row.className = 'mvu-row';
         if (editing === u.id){

@@ -16,6 +16,7 @@
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
+    { "name": "Método Campayo · Vocabulario", "short_name": "Campayo", "url": "./campayo.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Inglés en Voz Alta", "short_name": "Inglés", "url": "./ingles.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Sílabas con Mi Voz", "short_name": "Sílabas", "url": "./", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]

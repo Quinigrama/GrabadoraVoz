@@ -1,7 +1,7 @@
 /* Mi Voz: guarda la app para abrirla rápido y sin conexión.
    Las páginas se piden primero a internet (así siempre ves la última versión) y, si no hay conexión, se usa la copia guardada. */
-const CACHE = 'mivoz-v8';
-const SHELL = ['./', 'index.html', 'ingles.html', 'manifest.webmanifest', 'users.js', 'drive.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
+const CACHE = 'mivoz-v9';
+const SHELL = ['./', 'index.html', 'ingles.html', 'campayo.html', 'manifest.webmanifest', 'users.js', 'drive.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0C7A85">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Voz">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Método Campayo · Vocabulario con Mi Voz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Caveat:wght@600&display=swap">
+<style>
+/* Misma familia visual que Sílabas e Inglés. Las 4 columnas del método tienen su color fijo:
+   inglés (tinta), pronunciación figurada (turquesa), español (ámbar) y asociación inverosímil (azul, como en los apuntes de Campayo). */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#1A2130; --muted:#5B6578; --line:#D3D9E3;
+  --accent:#0C7A85; --accent-soft:#D6EEF0; --rec:#D23638; --ok:#2C8A57; --ok-soft:#DDF1E5; --bad-soft:#F9E0E0; --warn:#A8670E; --warn-soft:#FBEDD3;
+  --es:#A8560E; --es-soft:#FBEBDA; --asoc:#2456C9; --asoc-soft:#E2EAFB; --card:#E7DCC4; --card-line:#CDBF9F;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --hand:"Caveat", "Segoe Print", cursive;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#11151D; --surface:#1A202D; --ink:#E5E9F1; --muted:#97A1B5; --line:#2B3345;
+  --accent:#3DC3CB; --accent-soft:#183A40; --rec:#FF5B5D; --ok:#4CC38A; --ok-soft:#173527; --bad-soft:#3F1D20; --warn:#E3A74B; --warn-soft:#3A2D14;
+  --es:#F0A25A; --es-soft:#3A2715; --asoc:#86A8FF; --asoc-soft:#1C2A4D; --card:#3B3527; --card-line:#544B37; color-scheme:dark } }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:24px 56px;display:grid;gap:18px}
+header{display:grid;gap:8px}
+header .links{display:flex;flex-wrap:wrap;gap:14px}
+header .back{font-size:13px;color:var(--accent);text-decoration:none;font-weight:600;width:max-content}
+header h1{font:800 clamp(28px,6vw,40px)/1.05 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:66ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px;min-width:0}
+.sub{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:12px;min-width:0}
+.label{font:600 11px/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1 1 auto;min-width:0}
+button,.btn{font:600 14px/1 var(--body);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+button:hover:not(:disabled),.btn:hover{border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,.btn:focus-within,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.recbtn{background:var(--rec);border-color:var(--rec);color:#fff}
+.recbtn.on{animation:pulse 1s infinite}
+.okbtn{background:var(--ok);border-color:var(--ok);color:#fff}
+.kobtn{background:var(--bad-soft);border-color:transparent}
+@keyframes pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion: reduce){.recbtn.on{animation:none}}
+.ghost{background:transparent}
+.small{padding:7px 12px;font-weight:500;font-size:13px}
+.icon{padding:7px 9px;font-size:14px;font-weight:500}
+input[type=text],input[type=search],input[type=password],textarea,select{font:500 15px/1.4 var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+select{width:auto}
+textarea{min-height:110px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:66ch}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--rec)} .status.ok{color:var(--ok)}
+.banner{border:1px solid var(--rec);border-radius:10px;padding:12px 14px;font-size:14px}
+.tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--surface);border:1px solid var(--line);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:transparent;padding:9px 14px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+@media (max-width:460px){.tabs button{padding:8px 9px;font-size:13px}}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end}
+.settings label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.settings output{font:600 13px var(--mono);color:var(--ink)}
+.settings select{width:100%}
+.pill{font:600 12px/1 var(--body);padding:6px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-variant-numeric:tabular-nums}
+.pill.none{background:var(--bg);color:var(--muted)}
+.progress{height:8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent)}
+details summary{cursor:pointer;font-weight:600}
+details p,details li{color:var(--muted);font-size:14px;max-width:66ch}
+details p{margin:8px 0 0}
+
+/* colores de las 4 columnas */
+.c-en{font-weight:700;color:var(--ink)}
+.c-fig{font:600 14px var(--mono);color:var(--accent)}
+.c-es{font-weight:700;color:var(--es);text-transform:uppercase;letter-spacing:.02em}
+.c-asoc{color:var(--asoc);font-style:italic}
+
+/* lista de tablas */
+.tchips{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{display:grid;gap:6px;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);min-width:150px;flex:1 1 170px;font:500 14px/1.3 var(--body);cursor:pointer}
+.tchip b{font:700 15px/1.25 var(--display)}
+.tchip small{color:var(--muted);font-size:12px}
+.tchip[aria-current="true"]{border:2px solid var(--accent);background:var(--accent-soft)}
+
+/* rejilla de 4 columnas */
+.grid{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ghead,.vrow{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.9fr) minmax(0,1fr) minmax(0,2.1fr) auto;gap:12px;align-items:center;padding:10px 12px}
+.ghead{background:var(--bg);font:600 11px/1.2 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.vrow{border-top:1px solid var(--line)}
+.vrow .acts{display:flex;gap:4px;justify-content:flex-end}
+.vrow .acts button{padding:6px 8px;font-size:13px;font-weight:500}
+.vrow .acts button.has{border-color:var(--ok)}
+.vrow .box{font:600 10px/1 var(--mono);color:var(--muted)}
+.vrow.editing{background:var(--accent-soft)}
+@media (max-width:640px){
+  .ghead{display:none}
+  .vrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 10px}
+  .vrow .c-es{text-align:right}
+  .vrow .c-asoc,.vrow .acts{grid-column:1 / -1}
+  .vrow .acts{justify-content:flex-start;margin-top:4px}
+}
+.editor{display:grid;gap:10px}
+.editor .f4{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.editor .f4{grid-template-columns:1fr}}
+.editor label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.sugs{display:grid;gap:6px}
+.sug{text-align:left;border-radius:10px;padding:10px 12px;font:italic 500 14px/1.4 var(--body);color:var(--asoc);background:var(--asoc-soft);border-color:transparent;display:block;width:100%}
+
+/* plan de 7 días */
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.day{display:grid;justify-items:center;gap:2px;padding:8px 4px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font:600 12px/1.2 var(--body);cursor:pointer}
+.day b{font:800 18px/1 var(--display)}
+.day.done{background:var(--ok-soft);border-color:transparent}
+.day.next{border:2px solid var(--accent)}
+.daytxt{font-size:14px;margin:0}
+.daytxt b{color:var(--accent)}
+
+/* plantilla (la cartulina) */
+.tpl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.6fr);gap:8px}
+@media (max-width:640px){.tpl{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.tpl .cell.asoc{grid-column:1 / -1}}
+.cell{position:relative;min-height:96px;border-radius:12px;padding:12px;background:var(--bg);border:1px solid var(--line);display:grid;align-content:center;gap:4px;overflow:hidden}
+.cell .k{font:600 10px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cell .v{overflow-wrap:anywhere}
+.cell.en .v{font:800 clamp(24px,6vw,34px)/1.1 var(--display)}
+.cell.fig .v{font:600 clamp(18px,4.5vw,22px)/1.2 var(--mono);color:var(--accent)}
+.cell.es .v{font:800 clamp(20px,5vw,26px)/1.15 var(--display);color:var(--es);text-transform:uppercase}
+.cell.asoc .v{font:italic 500 16px/1.4 var(--body);color:var(--asoc)}
+.cell.cov{background:repeating-linear-gradient(135deg,var(--card) 0 10px,color-mix(in srgb,var(--card) 80%,var(--card-line)) 10px 20px);border-color:var(--card-line)}
+.cell.cov .v,.cell.cov .k{visibility:hidden}
+.cell.cov::after{content:"tapado";position:absolute;inset:auto 0 10px;text-align:center;font:600 18px var(--hand);color:color-mix(in srgb,var(--ink) 55%,transparent)}
+.cell.fresh{animation:pop .35s ease}
+@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.cell.fresh{animation:none}}
+.heard{font-size:15px;color:var(--muted);margin:0;min-height:1.4em;overflow-wrap:anywhere}
+.heard b{color:var(--ink);font-weight:500}
+.heard.ok b{color:var(--ok)} .heard.ko b{color:var(--rec)}
+.indio{font:700 clamp(20px,5vw,26px)/1.35 var(--display);margin:0;text-wrap:pretty}
+.indio-en{font:600 clamp(18px,4.5vw,22px)/1.4 var(--display);margin:0;color:var(--accent)}
+.summary{padding:16px;border-radius:12px;background:var(--ok-soft);display:grid;gap:8px}
+.summary b{font:800 28px/1 var(--display)}
+
+/* grabar y escuchar */
+.stage{display:grid;justify-items:center;text-align:center;gap:10px;padding:22px 16px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
+.stage .big{font:800 clamp(36px,10vw,60px)/1.05 var(--display);overflow-wrap:anywhere}
+.stage .fig{font:600 clamp(18px,5vw,24px)/1.2 var(--mono);color:var(--accent)}
+.stage .es{font:800 clamp(20px,5vw,28px)/1.2 var(--display);color:var(--es);text-transform:uppercase}
+.stage .asoc{font:italic 500 16px/1.4 var(--body);color:var(--asoc);max-width:50ch}
+.stage .what{font:600 14px/1.3 var(--body);color:var(--muted);letter-spacing:.02em}
+.stage .count{font:800 54px/1 var(--display);font-variant-numeric:tabular-nums}
+.stage.recording{border-color:var(--rec);background:color-mix(in srgb,var(--rec) 8%,var(--bg))}
+.stage.recording .what{color:var(--rec)}
+.stage .ear{font-size:56px;line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 13px/1 var(--body);padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:inline-flex;gap:6px;align-items:center}
+.chip.done{background:var(--ok-soft);border-color:transparent}
+.chip.now{outline:2px solid var(--accent)}
+
+/* diálogo y frases */
+.dlg{display:grid;gap:8px}
+.dline{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.dline .who{font:600 11px/1.6 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);min-width:72px}
+.dline .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.dline button{padding:5px 8px;font-size:13px}
+.flist{display:grid;gap:6px}
+.fitem{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.fitem .es{font-weight:600}
+.fitem .en{color:var(--accent);font-size:14px}
+.fitem button{grid-row:1 / span 2;align-self:center;padding:5px 8px;font-size:13px}
+
+/* método */
+.steps{display:grid;gap:10px;margin:0;padding:0;list-style:none;counter-reset:d}
+.steps li{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;padding:12px;border-radius:12px;background:var(--bg)}
+.steps li::before{counter-increment:d;content:counter(d);display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--ink);color:var(--surface);font:800 20px var(--display)}
+.steps li b{display:block;font:700 16px/1.3 var(--display);margin-bottom:2px}
+.steps li span{font-size:14px;color:var(--muted)}
+.example{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px;border-radius:12px;background:var(--bg)}
+@media (max-width:560px){.example{grid-template-columns:1fr 1fr}.example .c-asoc{grid-column:1 / -1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="links">
+      <a class="back" href="./">← Sílabas</a>
+      <a class="back" href="ingles.html">🇬🇧 Inglés en Voz Alta</a>
+    </div>
+    <h1>Método Campayo · Vocabulario</h1>
+    <p>Cada palabra en una fila de 4 casillas: <span class="c-en">inglés</span>, <span class="c-fig">«pronunciación»</span>, <span class="c-es">español</span> y una <span class="c-asoc">asociación inverosímil</span> que la pegue a tu memoria. Luego la repasas tapando casillas, grabas tu voz con pausas y la escuchas hasta soltarte.</p>
+    <div class="row" style="gap:8px"><span id="userBox"></span><span id="driveChip"></span><button class="small" id="installBtn" hidden>📲 Instalar como app</button></div>
+    <p class="note" id="installHelp" hidden></p>
+    <div id="bkNag" hidden style="margin-top:12px"></div>
+  </header>
+
+  <div class="banner" id="micMsg" hidden></div>
+
+  <div class="tabs" role="tablist" aria-label="Partes del método">
+    <button role="tab" id="tab-tablas" aria-controls="p-tablas" aria-selected="true">📋 Tablas</button>
+    <button role="tab" id="tab-tpl" aria-controls="p-tpl" aria-selected="false">🃏 Plantilla · <span id="dueCount">0</span></button>
+    <button role="tab" id="tab-rec" aria-controls="p-rec" aria-selected="false">🎙️ Grabar</button>
+    <button role="tab" id="tab-ear" aria-controls="p-ear" aria-selected="false">🎧 Escuchar</button>
+    <button role="tab" id="tab-met" aria-controls="p-met" aria-selected="false">💡 El método</button>
+  </div>
+
+  <!-- TABLAS -->
+  <section class="panel" id="p-tablas" role="tabpanel" aria-labelledby="tab-tablas">
+    <div class="row between">
+      <div class="label">Tus tablas</div>
+      <button class="small" id="tNew">+ Nueva tabla</button>
+    </div>
+    <div class="tchips" id="tList"></div>
+
+    <div id="tBox" style="display:grid;gap:14px">
+      <div class="row between" style="padding-top:12px;border-top:1px solid var(--line)">
+        <h2 id="tTitle" style="margin:0;font:800 clamp(22px,5vw,28px)/1.15 var(--display)"></h2>
+        <div class="row" style="gap:6px">
+          <button class="ghost small" id="tRename">✎ Nombre</button>
+          <button class="ghost small" id="tDel">🗑 Borrar</button>
+        </div>
+      </div>
+      <div class="row" id="tDelConfirm" hidden>
+        <span class="note grow">¿Borrar esta tabla, sus repasos y tus grabaciones? No se puede deshacer.</span>
+        <button class="recbtn small" id="tDelYes">Sí, borrar</button>
+        <button class="ghost small" id="tDelNo">Cancelar</button>
+      </div>
+      <div class="row" id="tRenBox" hidden>
+        <input type="text" id="tRenIn" class="grow" maxlength="60" style="flex:1 1 200px;width:auto">
+        <button class="primary small" id="tRenOk">Guardar</button>
+        <button class="ghost small" id="tRenNo">Cancelar</button>
+      </div>
+
+      <div class="sub">
+        <div class="row between"><div class="label">Plan de 7 días de esta tabla</div><span class="pill" id="tLearned"></span></div>
+        <div class="days" id="tDays"></div>
+        <p class="daytxt" id="tDayTxt"></p>
+        <div class="row" id="tDayGo"></div>
+      </div>
+
+      <div class="grid" id="tGrid"></div>
+      <div id="tEditor" hidden></div>
+      <div class="row">
+        <button class="primary small" id="rAdd">+ Añadir palabra</button>
+        <button class="small" id="rPasteBtn">📋 Pegar una lista</button>
+      </div>
+      <div class="sub" id="rPasteBox" hidden>
+        <p class="note">Una palabra por línea. Separa las casillas con punto y coma o tabulador: <b>inglés; pronunciación; español; asociación</b>. Puedes dejar vacías la pronunciación y la asociación y rellenarlas luego (a mano o con ✨ IA).</p>
+        <textarea id="rPasteIn" placeholder="parcel; pársel; paquete; Abro el PAQUETE y dentro hay una PARCELA entera&#10;door; dóor; puerta&#10;bell"></textarea>
+        <div class="row"><button class="primary small" id="rPasteOk">Añadir a la tabla</button><button class="ghost small" id="rPasteNo">Cancelar</button><span class="status" id="rPasteSt"></span></div>
+      </div>
+
+      <details class="sub" id="fBox">
+        <summary>🗣️ Frases «a lo indio» (días 5 y 6) · <span id="fCount">0</span></summary>
+        <p class="note">Campayo propone traducir frases en español con los verbos en infinitivo («Yo dejar paquete aquí») y decirlas en voz alta en inglés. Practícalas en <b>Plantilla → Frases</b>.</p>
+        <div class="flist" id="fList"></div>
+        <div class="row">
+          <input type="text" id="fEs" placeholder="En español «a lo indio»: Yo esperar aquí" style="flex:1 1 200px;width:auto">
+          <input type="text" id="fEn" placeholder="En inglés: I'll wait here." style="flex:1 1 200px;width:auto">
+          <button class="small" id="fAdd">+ Añadir</button>
+        </div>
+      </details>
+
+      <details class="sub" id="dBox">
+        <summary>💬 Diálogo de la situación (estilo Assimil)</summary>
+        <div class="dlg" id="dList"></div>
+        <textarea id="dEdit" hidden placeholder="Driver: Hello! I have a parcel for you.&#10;Customer: Thank you!"></textarea>
+        <div class="row">
+          <button class="small" id="dPlay">▶ Escuchar todo</button>
+          <button class="small" id="dSend">💬 Practicarlo en Inglés en Voz Alta</button>
+          <button class="ghost small" id="dEditBtn">✎ Editar</button>
+          <span class="status" id="dSt"></span>
+        </div>
+      </details>
+    </div>
+
+    <div class="row" style="padding-top:12px;border-top:1px solid var(--line)">
+      <button class="small" id="bkDown">⇩ Copia de seguridad</button>
+      <label class="btn small" for="bkIn">⇪ Importar copia</label>
+      <input type="file" id="bkIn" accept=".json,application/json" class="hidden-input">
+      <span class="status" id="bkStatus"></span>
+    </div>
+    <p class="note">Tus tablas, repasos y grabaciones se guardan solo en este navegador. La copia de seguridad incluye tus grabaciones; al importarla se junta con lo que ya tengas.</p>
+    <div id="driveBox"></div>
+  </section>
+
+  <!-- PLANTILLA -->
+  <section class="panel" id="p-tpl" role="tabpanel" aria-labelledby="tab-tpl" hidden>
+    <div class="settings">
+      <label>Qué repasar
+        <select id="pSrc">
+          <option value="due">Lo que toca hoy</option>
+          <option value="table">La tabla abierta</option>
+          <option value="all">Todas las tablas</option>
+        </select></label>
+      <label>Practicar
+        <select id="pMode">
+          <option value="w-en">Palabras: inglés → español</option>
+          <option value="w-es">Palabras: español → inglés</option>
+          <option value="f">Frases «a lo indio»</option>
+        </select></label>
+      <label>Orden
+        <select id="pOrder">
+          <option value="seq">Como en la tabla</option>
+          <option value="mix">Desordenado</option>
+        </select></label>
+    </div>
+    <p class="note" id="pInfo"></p>
+    <div class="row"><button class="primary" id="pStart">▶ Empezar repaso</button><span class="pill none" id="pProg" hidden></span></div>
+
+    <div id="pCardBox" hidden style="display:grid;gap:12px">
+      <div class="label" id="pFrom"></div>
+      <div class="tpl" id="pTpl"></div>
+      <div id="pFr" hidden style="display:grid;gap:10px">
+        <p class="indio" id="pFrEs"></p>
+        <p class="indio-en" id="pFrEn" hidden></p>
+      </div>
+      <p class="note" id="pHint"></p>
+      <div class="row">
+        <button id="pSay">🔊 Voz nativa</button>
+        <button class="recbtn" id="pMic">🎤 Decirla</button>
+        <button class="primary" id="pNext">Destapar ▸</button>
+      </div>
+      <p class="heard" id="pHeard"></p>
+      <div class="row" id="pGrade" hidden>
+        <button class="okbtn" id="pOk">✓ La sabía</button>
+        <button class="kobtn" id="pKo">✗ No la sabía</button>
+      </div>
+      <p class="note">Atajos de teclado: <b>espacio</b> destapa · <b>1</b> la sabía · <b>2</b> no la sabía · <b>V</b> voz nativa.</p>
+    </div>
+    <div id="pDone" hidden></div>
+  </section>
+
+  <!-- GRABAR -->
+  <section class="panel" id="p-rec" role="tabpanel" aria-labelledby="tab-rec" hidden>
+    <div class="label" id="gTitle"></div>
+    <p class="note">Día 3 del método: grabas tu voz diciendo cada palabra en inglés. Tras cada una hay unos segundos de silencio: aprovéchalos para repasar la fila entera, con su asociación. Así luego tendrás tu «cinta» para escuchar.</p>
+    <div class="settings">
+      <label>Antes de grabar
+        <select id="gNative">
+          <option value="1">Escuchar la voz nativa</option>
+          <option value="0">No escuchar nada</option>
+        </select></label>
+      <label>Tiempo para decirla <output id="gLenO"></output>
+        <input type="range" id="gLen" min="1.5" max="5" step="0.5"></label>
+      <label>Pausa para repasar la fila <output id="gGapO"></output>
+        <input type="range" id="gGap" min="0" max="8" step="1"></label>
+      <label>Grabar
+        <select id="gWhich">
+          <option value="all">Todas las palabras</option>
+          <option value="missing">Solo las que faltan</option>
+        </select></label>
+    </div>
+    <div class="row">
+      <button class="recbtn" id="gGo">🎙️ Empezar a grabar</button>
+      <button class="ghost" id="gStop" disabled>■ Parar</button>
+      <button class="ghost small" id="gRedo" disabled>↺ Repetir esta</button>
+    </div>
+    <div class="stage" id="gStage">
+      <div class="what" id="gWhat">Pulsa «Empezar a grabar». Ponte en un sitio tranquilo.</div>
+      <div class="big" id="gBig"></div>
+      <div class="fig" id="gFig"></div>
+      <div class="es" id="gEs"></div>
+      <div class="asoc" id="gAsoc"></div>
+      <div class="count" id="gCount"></div>
+    </div>
+    <div class="label">Grabadas</div>
+    <div class="chips" id="gChips"></div>
+  </section>
+
+  <!-- ESCUCHAR -->
+  <section class="panel" id="p-ear" role="tabpanel" aria-labelledby="tab-ear" hidden>
+    <div class="label" id="eTitle"></div>
+    <p class="note">Día 4 en adelante: escuchas la palabra en inglés y, en el silencio que sigue, la <b>repites en voz alta</b> y la <b>traduces al español</b>. Después oyes la respuesta para comprobar.</p>
+    <div class="settings">
+      <label>Qué voz escuchar
+        <select id="eVoice">
+          <option value="mine">Mi voz (si está grabada)</option>
+          <option value="native">Voz nativa</option>
+          <option value="both">Nativa y después la mía</option>
+        </select></label>
+      <label>Pausa para repetir y traducir <output id="eGapO"></output>
+        <input type="range" id="eGap" min="2" max="10" step="1"></label>
+      <label>Respuesta
+        <select id="eAns">
+          <option value="voice">Dicha en español y en pantalla</option>
+          <option value="screen">Solo en pantalla</option>
+          <option value="none">Sin respuesta</option>
+        </select></label>
+      <label>Qué escuchar
+        <select id="eSrc">
+          <option value="table">La tabla abierta</option>
+          <option value="all">Todas las tablas</option>
+        </select></label>
+      <label>Orden
+        <select id="eOrder">
+          <option value="seq">Como en la tabla</option>
+          <option value="mix">Desordenado</option>
+        </select></label>
+      <label>Acento de la voz nativa
+        <select id="eAccent">
+          <option value="en-GB">Británico</option>
+          <option value="en-US">Americano</option>
+        </select></label>
+    </div>
+    <div class="row">
+      <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="eLoop"> Repetir sin parar</label>
+      <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="eHide"> Solo de oído (no ver la palabra hasta la respuesta)</label>
+    </div>
+    <div class="row">
+      <button class="primary" id="eGo">▶ Empezar a escuchar</button>
+      <button class="ghost" id="eStop" disabled>■ Parar</button>
+      <button class="small" id="eTape">⇩ Descargar mi cinta (.wav)</button>
+      <span class="status" id="eSt"></span>
+    </div>
+    <div class="stage" id="eStage">
+      <div class="what" id="eWhat">Ponte los auriculares o el altavoz y pulsa «Empezar».</div>
+      <div class="ear" id="eEar" hidden>🎧</div>
+      <div class="big" id="eBig"></div>
+      <div class="fig" id="eFig"></div>
+      <div class="es" id="eEs"></div>
+      <div class="asoc" id="eAsoc"></div>
+      <div class="count" id="eCount"></div>
+    </div>
+    <p class="note">La cinta .wav lleva tu voz con los silencios ya puestos, como la grabadora de Campayo: puedes escucharla en cualquier reproductor sin abrir la app. Ojo: en España no se pueden llevar auriculares conduciendo; en el coche, por los altavoces, y en la moto, solo parado.</p>
+  </section>
+
+  <!-- EL MÉTODO -->
+  <section class="panel" id="p-met" role="tabpanel" aria-labelledby="tab-met" hidden>
+    <div class="label">La idea</div>
+    <p style="margin:0">Para Ramón Campayo, una palabra de otro idioma es un <b>dato puro</b>: no se puede deducir, así que repetirla una y otra vez no basta para retenerla. Hay que «engancharla» con una <b>asociación inverosímil</b>: una escena absurda que una el significado en español con una palabra española que <b>suene</b> parecido a la inglesa. Cuanto más rara y visual, mejor se recuerda. La repetición se deja para lo que viene después: soltarse hablando.</p>
+    <div class="example">
+      <span class="c-en" style="font-size:20px">parcel</span>
+      <span class="c-fig">«pársel»</span>
+      <span class="c-es">paquete</span>
+      <span class="c-asoc">Abro el PAQUETE y dentro hay una PARCELA entera, con césped y caseta.</span>
+    </div>
+    <div class="label">Cómo hacer buenas asociaciones</div>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>Busca una palabra española que suene como la inglesa (parcel → <b>parcela</b>, door → <b>dolor</b>, stairs → <b>estrellas</b>).</li>
+      <li>Únela al significado en una escena <b>imposible y exagerada</b>, nunca lógica. Si te hace gracia, mejor.</li>
+      <li><b>Visualízala</b> unos segundos, como una película. Si solo la lees, no funciona.</li>
+      <li>Escribe en MAYÚSCULAS el significado y la palabra clave, para verlos de un vistazo.</li>
+      <li>La mejor asociación es la tuya: cambia las que vienen de ejemplo si no te dicen nada. El botón ✨ te propone ideas.</li>
+    </ul>
+    <div class="label">El plan de 7 días (para cada tabla)</div>
+    <ol class="steps" id="mSteps"></ol>
+    <div class="label">Lo que añade esta app</div>
+    <ul style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li><b>Voz nativa</b> en cada palabra. Campayo recomienda oír a nativos además de tu voz: la pronunciación figurada es solo una ayuda y el inglés tiene sonidos que no existen en español.</li>
+      <li><b>Repasos espaciados</b>: cuando sabes una palabra, vuelve a los 1, 3, 7, 14 y 30 días. «Lo que toca hoy» te lo prepara solo.</li>
+      <li><b>Diálogo Assimil</b> en cada tabla, para usar las palabras dentro de frases reales.</li>
+    </ul>
+
+    <details class="sub" id="aiBox">
+      <summary id="aiSum">✨ Inteligencia artificial para sugerir asociaciones</summary>
+      <p>Usa la misma clave que la pestaña «Corregir» de Inglés en Voz Alta. Si ya la pusiste allí, no tienes que hacer nada.</p>
+      <div class="row">
+        <label class="note" for="aiProv">Sugerir con</label>
+        <select id="aiProv">
+          <option value="gemini">Gemini (Google)</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
+      </div>
+      <p id="aiHelp"></p>
+      <div class="row">
+        <input type="password" id="aiKey" class="grow" placeholder="Pega aquí tu clave" autocomplete="off" spellcheck="false" style="flex:1 1 200px;width:auto">
+        <button class="primary small" id="aiSave">Guardar</button>
+        <button class="ghost small" id="aiDel">Borrar clave</button>
+      </div>
+      <span class="status" id="aiSt"></span>
+    </details>
+    <p class="note">Basado en el libro <i>Aprende un idioma en 7 días</i>, de Ramón Campayo, y en los diálogos del método Assimil. Las tablas de ejemplo son para repartidores: puerta, edificio y problemas de entrega.</p>
+  </section>
+</div>
+<script src="users.js"></script>
+<script src="drive.js"></script>
+<script>
+(() => {
+const U = window.MiVozUsers;
+U.mount(document.getElementById('userBox'));
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (n, d = 1) => n.toFixed(d).replace('.', ',');
+function status(el, msg, kind){ el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch(e){ return d; } };
+const lsSet = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch(e){} };
+const DAY = 864e5;
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* =====================================================================
+   Tablas de ejemplo: inglés básico para repartidores
+   ===================================================================== */
+const SEED = [
+  { id: 't1', title: '🚪 En la puerta', rows: [
+    ['hello', 'jelóu', 'hola', 'Digo HOLA y me sale vaho de HIELO por la boca: «¡jelóu!»'],
+    ['parcel', 'pársel', 'paquete', 'Abro el PAQUETE y dentro hay una PARCELA entera, con césped y caseta.'],
+    ['delivery', 'dilíveri', 'entrega', 'Antes de aceptar la ENTREGA, toda la familia DELIBERA en asamblea en el rellano.'],
+    ['sign', 'sáin', 'firmar', 'El cliente FIRMA con el dedo sobre la pantalla gigante de un CINE.'],
+    ['door', 'dóor', 'puerta', 'Me doy con la PUERTA en la cara y… ¡qué DOLOR!'],
+    ['name', 'néim', 'nombre', 'Le pregunto su NOMBRE y un pez payaso asoma por la mirilla: «NEMO».'],
+    ['address', 'adrés', 'dirección', 'La DIRECCIÓN me la apuntó ANDRÉS en la frente con rotulador.'],
+    ['here', 'jíar', 'aquí', '«Déjelo AQUÍ, en la HIERBA», me dice señalando una maceta.'],
+    ['please', 'plíis', 'por favor', 'POR FAVOR, firme en un PLIS-PLAS, que llevo prisa.'],
+    ['thank you', 'zénkiu', 'gracias', 'Para darme las GRACIAS, el cliente sale de casa montado en un TANQUE.'],
+    ['wait', 'uéit', 'esperar', 'Mientras ESPERO en la puerta, me como un HUEVO duro: «uéit».'],
+    ['leave', 'líiv', 'dejar', 'DEJO el paquete en el felpudo y sale una LIEBRE corriendo de dentro.']
+  ], frases: [
+    ['Hola. Yo tener un paquete para usted.', 'Hello. I have a parcel for you.'],
+    ['¿Usted poder firmar aquí, por favor?', 'Can you sign here, please?'],
+    ['¿Cuál ser su nombre?', 'What is your name?'],
+    ['Yo esperar aquí.', "I'll wait here."],
+    ['¿Yo poder dejar el paquete en la puerta?', 'Can I leave the parcel at the door?']
+  ], dialog: "Driver: Hello! Delivery for Laura Smith.\nCustomer: Hi! That's me.\nDriver: Great. I have a parcel for you.\nCustomer: Thank you!\nDriver: Can you sign here, please?\nCustomer: Sure. Here you are.\nDriver: Thank you. Have a nice day!" },
+  { id: 't2', title: '🏢 El edificio', rows: [
+    ['floor', 'flóor', 'planta', 'En cada PLANTA del edificio crece una FLOR gigante que tapa el pasillo.'],
+    ['flat', 'flat', 'piso', 'Mi PISO es tan pequeño que parece un FLAN aplastado.'],
+    ['lift', 'lift', 'ascensor', 'En el ASCENSOR te hacen un LIFTING de cara entre planta y planta.'],
+    ['stairs', 'stéars', 'escaleras', 'Subo tantas ESCALERAS cargado que acabo viendo las ESTRELLAS.'],
+    ['bell', 'bel', 'timbre', 'Toco el TIMBRE y me abre una mujer BELLÍSIMA con corona.'],
+    ['upstairs', 'apstéars', 'arriba', '¡AÚPA! Subo ARRIBA por las escaleras hasta las ESTRELLAS.'],
+    ['downstairs', 'dáunstéars', 'abajo', 'Me hago DAÑO bajando ABAJO las escaleras de culo.'],
+    ['left', 'left', 'izquierda', 'A la IZQUIERDA hay un ELEFANTE atascado en el pasillo.'],
+    ['right', 'ráit', 'derecha', 'A la DERECHA pasa una RATA con casco de repartidor.'],
+    ['gate', 'guéit', 'verja', 'En la VERJA hay un GATO atrapado entre los barrotes.'],
+    ['neighbour', 'néibor', 'vecino', 'El VECINO me abre la puerta disfrazado de NABO.'],
+    ['key', 'kíi', 'llave', 'La LLAVE está colgada del QUICIO de la puerta.']
+  ], frases: [
+    ['¿Qué planta? Yo subir por las escaleras.', "Which floor? I'll take the stairs."],
+    ['El ascensor no funcionar.', "The lift doesn't work."],
+    ['Su piso estar arriba, a la izquierda.', 'Your flat is upstairs, on the left.'],
+    ['Yo tocar el timbre, pero nadie contestar.', 'I rang the bell, but nobody answered.'],
+    ['¿Usted poder abrir la verja, por favor?', 'Can you open the gate, please?']
+  ], dialog: "Driver: Hi! I'm at the gate. Can you open, please?\nCustomer: Sure. Come in.\nDriver: Which floor is your flat?\nCustomer: Fourth floor. Take the lift, it's on the left.\nDriver: The lift doesn't work. I'll take the stairs.\nCustomer: Oh, sorry! Thank you." },
+  { id: 't3', title: '📞 Problemas y soluciones', rows: [
+    ['call', 'kóol', 'llamar', 'LLAMO por teléfono y me contesta una COL con gafas.'],
+    ['phone', 'fóun', 'teléfono', 'Se me cae el TELÉFONO dentro de una FUENTE y sigue sonando.'],
+    ['late', 'léit', 'tarde', 'Llego TARDE porque me paré a tomar un LATTE.'],
+    ['later', 'léiter', 'más tarde', 'Si llego tarde (late), lo dejo para MÁS TARDE (later)… con otro LATTE más grande.'],
+    ['tomorrow', 'tumórou', 'mañana', 'MAÑANA desayuno un TOMATE MORADO.'],
+    ['again', 'aguén', 'otra vez', '¡OTRA VEZ el ascensor roto! ¡AGUANTA, rodilla!'],
+    ['wrong', 'rong', 'equivocado', 'Me EQUIVOCO de casa y encuentro al dueño RONCANDO en el sofá.'],
+    ['nobody', 'nóubodi', 'nadie', 'NADIE vino a la BODA: «nou-BODI».'],
+    ['closed', 'klóusd', 'cerrado', 'La tienda está CERRADA a cal y canto, como un CLÓSET.'],
+    ['open', 'óupen', 'abrir', 'Al ABRIR la puerta sale una cantante de ÓPERA dando el do de pecho.'],
+    ['help', 'jelp', 'ayuda', 'Pido AYUDA y me lanzan un JALAPEÑO.'],
+    ['sorry', 'sóri', 'perdón', 'PERDÓN, he pisado a un señor de SORIA.']
+  ], frases: [
+    ['Nadie estar en casa. Yo llamar más tarde.', "Nobody is at home. I'll call later."],
+    ['Perdón, yo llegar tarde.', "Sorry, I'm late."],
+    ['¿Yo poder venir otra vez mañana?', 'Can I come again tomorrow?'],
+    ['La dirección estar mal.', 'The address is wrong.'],
+    ['¿Usted necesitar ayuda?', 'Do you need help?']
+  ], dialog: "Driver: Hello, I'm calling about your parcel. Nobody is at home.\nCustomer: Oh, sorry! I'm at work. Can you come later?\nDriver: I can come again tomorrow morning.\nCustomer: Can you leave it with my neighbour?\nDriver: Yes, of course. Which flat is it?\nCustomer: Second floor, flat B. Thank you!" }
+];
+function seedTables(){
+  return SEED.map(t => ({
+    id: t.id, title: t.title, plan: {}, dialog: t.dialog,
+    rows: t.rows.map(([en, fig, es, asoc], i) => ({ id: 'r' + (i + 1), en, fig, es, asoc })),
+    frases: t.frases.map(([es, en], i) => ({ id: 'f' + (i + 1), es, en }))
+  }));
+}
+
+/* =====================================================================
+   Datos guardados (IndexedDB por usuario: «kv» para las tablas, «audio» para las grabaciones)
+   ===================================================================== */
+const S = { tables: [], cards: {} };
+const AUD = new Set();
+let db = null;
+function openDB(){
+  return new Promise(res => {
+    try {
+      const r = indexedDB.open(U.dbName('metodo-campayo'), 1);
+      r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('kv'); d.createObjectStore('audio'); };
+      r.onsuccess = () => res(r.result); r.onerror = () => res(null);
+    } catch(e){ res(null); }
+  });
+}
+function idb(store, mode, fn){
+  return new Promise(res => {
+    if (!db) return res(null);
+    try {
+      const tx = db.transaction(store, mode); const q = fn(tx.objectStore(store));
+      tx.oncomplete = () => res(q && q.result !== undefined ? q.result : null);
+      tx.onerror = tx.onabort = () => res(null);
+    } catch(e){ res(null); }
+  });
+}
+const kvGet = k => idb('kv', 'readonly', s => s.get(k));
+const kvPut = (k, v) => idb('kv', 'readwrite', s => s.put(v, k));
+const auGet = k => idb('audio', 'readonly', s => s.get(k));
+const auPut = (k, b) => idb('audio', 'readwrite', s => s.put(b, k));
+const auDel = k => idb('audio', 'readwrite', s => s.delete(k));
+const auKeys = () => idb('audio', 'readonly', s => s.getAllKeys());
+function save(what){
+  if (!what || what === 'tables') kvPut('tables', S.tables);
+  if (!what || what === 'cards') kvPut('cards', S.cards);
+  U.changed('campayo');
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
+}
+const prefs = { cur: 't1', gNative: '1', gLen: 2.5, gGap: 5, gWhich: 'all', eVoice: 'mine', eGap: 5, eAns: 'voice', eSrc: 'table', eOrder: 'seq', eLoop: false, eHide: false, accent: 'en-GB', rate: 0.9, pSrc: 'due', pMode: 'w-en', pOrder: 'seq' };
+function loadPrefs(){ try { Object.assign(prefs, JSON.parse(lsGet(U.key('campayo-prefs'), '{}'))); } catch(e){} }
+function savePrefs(){ lsSet(U.key('campayo-prefs'), JSON.stringify(prefs)); }
+
+const rk = (t, r) => t.id + ':' + r.id;          // clave de una palabra (repasos y grabación)
+const fk = (t, f) => 'f:' + t.id + ':' + f.id;   // clave de una frase
+const cur = () => S.tables.find(t => t.id === prefs.cur) || S.tables[0] || null;
+
+/* ---------- Repasos espaciados ---------- */
+const INT = [0, 1, 3, 7, 14, 30];
+function grade(key, ok){
+  const c = S.cards[key] || { box: 0, ok: 0, ko: 0 };
+  if (ok){ c.box = Math.min(5, (c.box || 0) + 1); c.ok++; } else { c.box = 0; c.ko++; }
+  c.due = today() + INT[c.box] * DAY; c.last = Date.now();
+  S.cards[key] = c; save('cards');
+}
+const isNew = key => !S.cards[key];
+const isDue = key => { const c = S.cards[key]; return !c || c.due <= today(); };
+const learned = t => t.rows.filter(r => (S.cards[rk(t, r)] || {}).box >= 2).length;
+function dueItems(){
+  const out = [];
+  S.tables.forEach(t => t.rows.forEach(r => { if (isDue(rk(t, r))) out.push({ t, r }); }));
+  return out;
+}
+function dueCount(){
+  let rev = 0, neu = 0;
+  S.tables.forEach(t => t.rows.forEach(r => { const k = rk(t, r); if (isNew(k)) neu++; else if (isDue(k)) rev++; }));
+  return { rev, neu };
+}
+
+/* =====================================================================
+   Voz nativa y voz en español (síntesis del navegador)
+   ===================================================================== */
+let voices = [];
+function loadVoices(){ try { voices = speechSynthesis.getVoices(); } catch(e){ voices = []; } }
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(lang){
+  lang = lang.toLowerCase();
+  let list = voices.filter(v => v.lang.replace('_', '-').toLowerCase() === lang);
+  if (!list.length) list = voices.filter(v => v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
+  list.sort((a, b) => (/google|natural|online/i.test(b.name) ? 1 : 0) - (/google|natural|online/i.test(a.name) ? 1 : 0));
+  return list[0] || null;
+}
+function speakIn(text, lang, rate){
+  return new Promise(res => {
+    if (!('speechSynthesis' in window) || !text){ res(); return; }
+    try { speechSynthesis.cancel(); } catch(e){}
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice(lang); if (v) u.voice = v;
+    u.lang = lang; u.rate = rate || 1;
+    let done = false; const fin = () => { if (!done){ done = true; res(); } };
+    u.onend = fin; u.onerror = fin;
+    setTimeout(fin, 3000 + text.length * 170 / u.rate);
+    speechSynthesis.speak(u);
+  });
+}
+const speak = text => speakIn(text, prefs.accent, prefs.rate);
+const speakEs = text => speakIn(text, 'es-ES', 1);
+
+/* ---------- Reconocimiento de voz (Chrome) para comprobar la pronunciación ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function micError(err){
+  const txt = {
+    'not-allowed': 'No tengo permiso para usar el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono.',
+    'service-not-allowed': 'El reconocimiento de voz está bloqueado en este navegador. Prueba con Chrome.',
+    'network': 'Comprobar la pronunciación necesita internet y no hay conexión.',
+    'audio-capture': 'No encuentro el micrófono.'
+  }[err];
+  if (txt){ $('micMsg').textContent = txt; $('micMsg').hidden = false; }
+}
+let curSR = null;
+function hear(lang){
+  return new Promise(res => {
+    if (!SR) return res({ alts: [], err: 'nosr' });
+    const r = new SR(); curSR = r;
+    r.lang = lang; r.interimResults = false; r.maxAlternatives = 5; r.continuous = false;
+    let alts = [], err = null;
+    r.onresult = e => { alts = Array.from(e.results[0] || []).map(a => a.transcript.trim()); };
+    r.onerror = e => { err = e.error; };
+    r.onend = () => { curSR = null; res({ alts, err }); };
+    try { r.start(); } catch(e){ curSR = null; res({ alts: [], err: 'start' }); }
+  });
+}
+const NUM = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+const CONTR = { "i'm": 'i am', "i'll": 'i will', "you're": 'you are', "it's": 'it is', "that's": 'that is', "what's": 'what is', "doesn't": 'does not', "don't": 'do not', "can't": 'can not', "cannot": 'can not', "isn't": 'is not', "won't": 'will not', "let's": 'let us', "there's": 'there is', "here's": 'here is' };
+function toks(s){
+  return s.toLowerCase().replace(/[’‘`´]/g, "'").split(/\s+/).flatMap(w => {
+    w = w.replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, '');
+    if (!w) return [];
+    if (CONTR[w]) return CONTR[w].split(' ');
+    if (/^\d+$/.test(w)) return [+w <= 10 ? NUM[+w] : w];
+    return [w.replace(/'/g, '')];
+  });
+}
+/* Parte de la frase objetivo que aparece, en orden, en lo que entendió Google (0 a 1) */
+function matchScore(target, alts){
+  const tt = toks(target); if (!tt.length) return 0;
+  let best = 0;
+  alts.forEach(a => {
+    const hh = toks(a), n = tt.length, m = hh.length;
+    const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = tt[i] === hh[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    best = Math.max(best, L[0][0] / n);
+  });
+  return best;
+}
+
+/* =====================================================================
+   Audio: micrófono, pitido, recorte de silencios y WAV
+   ===================================================================== */
+let actxObj = null;
+const actx = () => { if (!actxObj) actxObj = new (window.AudioContext || window.webkitAudioContext)(); if (actxObj.state === 'suspended') actxObj.resume(); return actxObj; };
+function beep(freq = 880, ms = 140){
+  return new Promise(res => {
+    try {
+      const c = actx(), o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.25, c.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + ms / 1000);
+      o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + ms / 1000 + 0.02);
+      setTimeout(res, ms + 60);
+    } catch(e){ res(); }
+  });
+}
+let mic = null;
+async function getMic(){
+  if (mic && mic.getTracks().some(t => t.readyState === 'live')) return mic;
+  mic = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  return mic;
+}
+function releaseMic(){ if (mic){ mic.getTracks().forEach(t => t.stop()); mic = null; } }
+function recordFor(stream, ms, run){
+  return new Promise(res => {
+    let mr; try { mr = new MediaRecorder(stream, { audioBitsPerSecond: 96000 }); } catch(e){ mr = new MediaRecorder(stream); }
+    const chunks = [];
+    mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+    mr.onstop = () => res(new Blob(chunks, { type: mr.mimeType || 'audio/webm' }));
+    mr.start();
+    const t0 = Date.now();
+    const iv = setInterval(() => { if ((run && run.stop) || Date.now() - t0 >= ms){ clearInterval(iv); if (mr.state !== 'inactive') mr.stop(); } }, 50);
+  });
+}
+const SR_OUT = 22050;
+async function decode(blob){
+  const buf = await blob.arrayBuffer();
+  const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, SR_OUT);
+  return await off.decodeAudioData(buf);
+}
+function encodeWav(samples, rate){
+  const b = new ArrayBuffer(44 + samples.length * 2), v = new DataView(b);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++){ const s = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); }
+  return new Blob([b], { type: 'audio/wav' });
+}
+/* Quita el silencio de delante y de detrás y sube el volumen: así la cinta suena limpia */
+async function cleanClip(blob){
+  try {
+    const ab = await decode(blob), d = ab.getChannelData(0);
+    let peak = 0; for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    if (peak < 0.01) return { blob: null, silent: true };
+    const th = Math.max(0.02, peak * 0.12), win = Math.floor(SR_OUT * 0.01);
+    let a = 0, z = d.length - 1;
+    const loud = i => { let s = 0; for (let k = i; k < Math.min(d.length, i + win); k++) s = Math.max(s, Math.abs(d[k])); return s >= th; };
+    while (a < d.length && !loud(a)) a += win;
+    while (z > a && !loud(Math.max(0, z - win))) z -= win;
+    a = Math.max(0, a - Math.floor(SR_OUT * 0.12)); z = Math.min(d.length, z + Math.floor(SR_OUT * 0.2));
+    const g = 0.9 / peak, out = new Float32Array(Math.max(1, z - a));
+    for (let i = 0; i < out.length; i++) out[i] = d[a + i] * g;
+    const fade = Math.min(out.length >> 2, Math.floor(SR_OUT * 0.015));
+    for (let i = 0; i < fade; i++){ out[i] *= i / fade; out[out.length - 1 - i] *= i / fade; }
+    return { blob: encodeWav(out, SR_OUT) };
+  } catch(e){ return { blob }; }
+}
+let curAudio = null;
+function playBlob(blob){
+  return new Promise(res => {
+    const url = URL.createObjectURL(blob), a = new Audio(url);
+    curAudio = a;
+    const fin = () => { URL.revokeObjectURL(url); if (curAudio === a) curAudio = null; res(); };
+    a.onended = fin; a.onerror = fin; a.onpause = () => { if (!a.ended) fin(); };
+    a.play().catch(fin);
+  });
+}
+function stopSound(){
+  try { speechSynthesis.cancel(); } catch(e){}
+  if (curAudio){ try { curAudio.pause(); } catch(e){} curAudio = null; }
+}
+/* Espera ms milisegundos (se corta si se pulsa «Parar»); tick recibe los segundos que faltan */
+function wait(ms, run, tick){
+  return new Promise(res => {
+    const t0 = Date.now(); let last = -1;
+    const iv = setInterval(() => {
+      const left = ms - (Date.now() - t0);
+      const s = Math.ceil(left / 1000);
+      if (tick && s !== last && left > 0){ last = s; tick(s); }
+      if (left <= 0 || (run && run.stop)){ clearInterval(iv); tick && tick(0); res(); }
+    }, 80);
+  });
+}
+let wakeLock = null;
+async function keepAwake(on){
+  try {
+    if (on && 'wakeLock' in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+    if (!on && wakeLock){ await wakeLock.release(); wakeLock = null; }
+  } catch(e){}
+}
+async function playMine(t, r){ const b = await auGet(rk(t, r)); if (b){ await playBlob(b); return true; } return false; }
+
+/* =====================================================================
+   Pestañas
+   ===================================================================== */
+const TABS = ['tablas', 'tpl', 'rec', 'ear', 'met'];
+let stopAll = () => {};
+function showTab(name){
+  stopAll();
+  TABS.forEach(t => { $('tab-' + t).setAttribute('aria-selected', t === name); $('p-' + t).hidden = t !== name; });
+  lsSet('campayo-tab', name);
+  if (name === 'tablas') renderTablas();
+  if (name === 'tpl') renderTplIntro();
+  if (name === 'rec') renderRec();
+  if (name === 'ear') renderEar();
+  if (name === 'met') renderMet();
+}
+TABS.forEach(t => $('tab-' + t).onclick = () => showTab(t));
+function refreshDue(){ const d = dueCount(); $('dueCount').textContent = d.rev + d.neu; }
+
+/* =====================================================================
+   TABLAS
+   ===================================================================== */
+const DAYS = [
+  ['Crear y asociar', 'Escribe cada palabra con su pronunciación y su significado, e inventa una <b>asociación inverosímil</b> para cada fila. Luego repásala con la <b>Plantilla</b>, viendo cada asociación como una película.', 'tpl'],
+  ['Repasar', 'Repite el repaso con la <b>Plantilla</b>. Lo ideal es que hoy ya te sepas todas las traducciones.', 'tpl'],
+  ['Grabar tu voz', 'Graba cada palabra en <b>Grabar</b>. En cada pausa, repasa la fila completa con su asociación.', 'rec'],
+  ['Escuchar', 'En <b>Escuchar</b>, repite cada palabra en voz alta y tradúcela durante la pausa. Afina el oído empezando por tu propia voz.', 'ear'],
+  ['Frases «a lo indio»', 'Traduce y di en inglés las frases con verbos en infinitivo (<b>Plantilla → Frases</b>). No te pares ni te preocupes por el resultado.', 'tplf'],
+  ['Más frases y diálogo', 'Vuelve a las frases y escucha el <b>diálogo</b> de la tabla. Repite cada intervención.', 'dlg'],
+  ['Voces nativas', 'Practica el diálogo en <b>Inglés en Voz Alta</b> haciendo de repartidor, y escucha en voz nativa todo lo aprendido.', 'send']
+];
+let editRow = null, sugs = null;
+function renderTablas(){
+  const list = $('tList'); list.innerHTML = '';
+  S.tables.forEach(t => {
+    const b = document.createElement('button'); b.className = 'tchip'; b.type = 'button';
+    b.setAttribute('aria-current', t.id === prefs.cur);
+    const n = t.rows.length, l = learned(t), rec = t.rows.filter(r => AUD.has(rk(t, r))).length;
+    const done = Object.values(t.plan || {}).filter(Boolean).length;
+    b.innerHTML = '<b>' + esc(t.title) + '</b><small>' + n + ' palabras · ' + l + ' aprendidas · 🎙️ ' + rec + ' · día ' + Math.min(7, done + 1) + '/7</small>' +
+      '<div class="progress"><i style="width:' + (n ? Math.round(l / n * 100) : 0) + '%"></i></div>';
+    b.onclick = () => { prefs.cur = t.id; savePrefs(); editRow = null; sugs = null; renderTablas(); };
+    list.append(b);
+  });
+  const t = cur();
+  $('tBox').hidden = !t;
+  if (!t) return;
+  $('tTitle').textContent = t.title;
+  $('tLearned').textContent = learned(t) + ' de ' + t.rows.length + ' aprendidas';
+  renderPlan(t); renderGrid(t); renderFrases(t); renderDialog(t); refreshDue();
+}
+function renderPlan(t){
+  t.plan = t.plan || {};
+  const box = $('tDays'); box.innerHTML = '';
+  const next = DAYS.findIndex((_, i) => !t.plan[i + 1]);
+  DAYS.forEach((d, i) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'day' + (t.plan[i + 1] ? ' done' : '') + (i === next ? ' next' : '');
+    b.innerHTML = '<span>Día</span><b>' + (i + 1) + '</b><span>' + (t.plan[i + 1] ? '✓' : '·') + '</span>';
+    b.title = d[0] + (t.plan[i + 1] ? ' (hecho; toca para desmarcar)' : ' (toca para marcar como hecho)');
+    b.onclick = () => { t.plan[i + 1] = !t.plan[i + 1]; save('tables'); renderTablas(); };
+    box.append(b);
+  });
+  const k = next < 0 ? 6 : next, d = DAYS[k];
+  $('tDayTxt').innerHTML = (next < 0 ? '🎉 Has completado el plan. Sigue con los repasos que tocan cada día. ' : '<b>Día ' + (k + 1) + ' · ' + d[0] + '.</b> ') + (next < 0 ? '' : d[1]);
+  const go = $('tDayGo'); go.innerHTML = '';
+  if (next >= 0){
+    const b = document.createElement('button'); b.className = 'primary small';
+    const lbl = { tpl: '🃏 Ir a la plantilla', rec: '🎙️ Ir a grabar', ear: '🎧 Ir a escuchar', tplf: '🗣️ Practicar frases', dlg: '💬 Abrir el diálogo', send: '💬 Practicar el diálogo' }[d[2]];
+    b.textContent = lbl;
+    b.onclick = () => {
+      if (d[2] === 'tpl'){ prefs.pSrc = 'table'; prefs.pMode = 'w-en'; savePrefs(); showTab('tpl'); }
+      else if (d[2] === 'tplf'){ prefs.pSrc = 'table'; prefs.pMode = 'f'; savePrefs(); showTab('tpl'); }
+      else if (d[2] === 'dlg'){ $('dBox').open = true; $('dBox').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      else if (d[2] === 'send') sendDialog(t);
+      else showTab(d[2]);
+    };
+    const m = document.createElement('button'); m.className = 'ghost small'; m.textContent = '✓ Marcar día ' + (k + 1) + ' como hecho';
+    m.onclick = () => { t.plan[k + 1] = true; save('tables'); renderTablas(); };
+    go.append(b, m);
+  }
+}
+function rowHTML(t, r){
+  const c = S.cards[rk(t, r)], has = AUD.has(rk(t, r));
+  const box = c ? (c.box >= 2 ? '✓ aprendida' : c.ko && !c.box ? 'a repasar' : 'empezada') : 'nueva';
+  return '<span class="c-en">' + esc(r.en) + '<br><span class="box">' + box + '</span></span>' +
+    '<span class="c-fig">' + (r.fig ? '«' + esc(r.fig) + '»' : '—') + '</span>' +
+    '<span class="c-es">' + esc(r.es) + '</span>' +
+    '<span class="c-asoc">' + (r.asoc ? esc(r.asoc) : '<span style="color:var(--muted)">(falta la asociación)</span>') + '</span>' +
+    '<span class="acts">' +
+      '<button data-a="say" title="Voz nativa" aria-label="Escuchar ' + esc(r.en) + ' en voz nativa">🔊</button>' +
+      '<button data-a="mine" class="' + (has ? 'has' : '') + '" title="' + (has ? 'Escuchar mi grabación' : 'Grabar mi voz') + '" aria-label="' + (has ? 'Escuchar mi grabación' : 'Grabar mi voz') + '">' + (has ? '▶' : '🎤') + '</button>' +
+      '<button data-a="edit" title="Editar" aria-label="Editar ' + esc(r.en) + '">✎</button>' +
+    '</span>';
+}
+function renderGrid(t){
+  const g = $('tGrid');
+  g.innerHTML = '<div class="ghead"><span>Inglés</span><span>Pronunciación</span><span>Español</span><span>Asociación inverosímil</span><span></span></div>';
+  if (!t.rows.length) g.innerHTML += '<div class="vrow"><span class="note" style="grid-column:1/-1">Esta tabla está vacía. Añade palabras: lo ideal son unas 12 por tabla.</span></div>';
+  t.rows.forEach(r => {
+    const row = document.createElement('div'); row.className = 'vrow' + (editRow === r.id ? ' editing' : ''); row.dataset.id = r.id;
+    row.innerHTML = rowHTML(t, r);
+    g.append(row);
+    if (editRow === r.id) g.append(editorEl(t, r));
+  });
+  if (editRow === 'new') g.append(editorEl(t, null));
+}
+$('tGrid').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const row = b.closest('.vrow'); if (!row) return;
+  const t = cur(), r = t.rows.find(x => x.id === row.dataset.id); if (!r) return;
+  const a = b.dataset.a;
+  if (a === 'say') speak(r.en);
+  if (a === 'edit'){ editRow = editRow === r.id ? null : r.id; sugs = null; renderGrid(t); }
+  if (a === 'mine'){
+    if (AUD.has(rk(t, r))){ stopSound(); await playMine(t, r); }
+    else await recordOne(t, r, b);
+  }
+});
+/* Grabar una sola palabra desde la tabla */
+async function recordOne(t, r, btn){
+  try {
+    const stream = await getMic();
+    btn.textContent = '🔴'; btn.disabled = true;
+    await beep();
+    const raw = await recordFor(stream, prefs.gLen * 1000);
+    releaseMic();
+    const c = await cleanClip(raw);
+    if (c.blob){ await auPut(rk(t, r), c.blob); AUD.add(rk(t, r)); save('none'); await playBlob(c.blob); }
+    else alert('No se ha oído nada. Acércate al micrófono y vuelve a probar.');
+  } catch(e){ micError('not-allowed'); }
+  renderTablas();
+}
+function editorEl(t, r){
+  const box = document.createElement('div'); box.className = 'sub editor'; box.style.margin = '0 10px 10px';
+  const v = r || { en: '', fig: '', es: '', asoc: '' };
+  box.innerHTML =
+    '<div class="label">' + (r ? 'Editar palabra' : 'Nueva palabra') + '</div>' +
+    '<div class="f4">' +
+      '<label>Inglés<input type="text" data-f="en" value="' + esc(v.en) + '" placeholder="parcel" autocapitalize="none" spellcheck="false"></label>' +
+      '<label>Pronunciación figurada<input type="text" data-f="fig" value="' + esc(v.fig) + '" placeholder="pársel" autocapitalize="none" spellcheck="false"></label>' +
+      '<label>Español<input type="text" data-f="es" value="' + esc(v.es) + '" placeholder="paquete"></label>' +
+    '</div>' +
+    '<label style="display:grid;gap:4px;font-size:12px;color:var(--muted)">Asociación inverosímil<textarea data-f="asoc" style="min-height:70px" placeholder="Abro el PAQUETE y dentro hay una PARCELA entera">' + esc(v.asoc) + '</textarea></label>' +
+    '<div class="sugs" data-sugs></div>' +
+    '<div class="row">' +
+      '<button class="primary small" data-e="save">Guardar</button>' +
+      '<button class="small" data-e="ai">✨ Sugerir con IA</button>' +
+      '<button class="small" data-e="say">🔊 Oír</button>' +
+      (r ? '<button class="ghost small" data-e="del">🗑 Quitar</button>' + (AUD.has(rk(t, r)) ? '<button class="ghost small" data-e="rerec">🎤 Volver a grabar</button>' : '') : '') +
+      '<button class="ghost small" data-e="cancel">Cancelar</button>' +
+      '<span class="status grow" data-st></span>' +
+    '</div>';
+  const f = k => box.querySelector('[data-f="' + k + '"]');
+  const st = box.querySelector('[data-st]');
+  const drawSugs = () => {
+    const s = box.querySelector('[data-sugs]'); s.innerHTML = '';
+    if (!sugs || !sugs.length) return;
+    const l = document.createElement('div'); l.className = 'note'; l.textContent = 'Toca la que más te guste (luego puedes retocarla):'; s.append(l);
+    sugs.forEach(x => { const b = document.createElement('button'); b.className = 'sug'; b.type = 'button'; b.textContent = x; b.onclick = () => { f('asoc').value = x; }; s.append(b); });
+  };
+  drawSugs();
+  box.addEventListener('click', async e => {
+    const b = e.target.closest('[data-e]'); if (!b) return;
+    const a = b.dataset.e;
+    if (a === 'cancel'){ editRow = null; sugs = null; renderGrid(t); }
+    if (a === 'say') speak(f('en').value.trim());
+    if (a === 'save'){
+      const en = f('en').value.trim(), es = f('es').value.trim();
+      if (!en || !es){ status(st, 'Hacen falta al menos la palabra en inglés y su significado.', 'err'); return; }
+      const val = { en, fig: f('fig').value.trim().replace(/^«|»$/g, ''), es, asoc: f('asoc').value.trim() };
+      if (r){ if (r.en !== en && AUD.has(rk(t, r))){ await auDel(rk(t, r)); AUD.delete(rk(t, r)); } Object.assign(r, val); }
+      else t.rows.push({ id: 'r' + uid(), ...val });
+      editRow = r ? null : 'new'; sugs = null; save('tables'); renderTablas();
+      if (!r){ const n = $('tGrid').querySelector('[data-f="en"]'); n && n.focus(); }
+    }
+    if (a === 'del'){
+      t.rows = t.rows.filter(x => x !== r); delete S.cards[rk(t, r)];
+      if (AUD.has(rk(t, r))){ await auDel(rk(t, r)); AUD.delete(rk(t, r)); }
+      editRow = null; save(); renderTablas();
+    }
+    if (a === 'rerec'){ await auDel(rk(t, r)); AUD.delete(rk(t, r)); editRow = null; renderTablas(); const btn = $('tGrid').querySelector('.vrow[data-id="' + r.id + '"] [data-a="mine"]'); btn && recordOne(t, r, btn); }
+    if (a === 'ai'){
+      const en = f('en').value.trim();
+      if (!en){ status(st, 'Escribe primero la palabra en inglés.', 'err'); return; }
+      b.disabled = true; status(st, 'Pensando asociaciones…');
+      try {
+        const j = await suggest(en, f('es').value.trim());
+        if (j.fig && !f('fig').value.trim()) f('fig').value = j.fig;
+        if (j.es && !f('es').value.trim()) f('es').value = j.es;
+        sugs = j.options; drawSugs(); status(st, '');
+      } catch(err){ status(st, err.message, 'err'); }
+      b.disabled = false;
+    }
+  });
+  box.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); box.querySelector('[data-e="save"]').click(); } });
+  if (!r) setTimeout(() => f('en').focus());
+  return box;
+}
+$('rAdd').onclick = () => { editRow = 'new'; sugs = null; renderGrid(cur()); };
+$('rPasteBtn').onclick = () => { $('rPasteBox').hidden = !$('rPasteBox').hidden; if (!$('rPasteBox').hidden) $('rPasteIn').focus(); };
+$('rPasteNo').onclick = () => { $('rPasteBox').hidden = true; };
+$('rPasteOk').onclick = () => {
+  const t = cur(); let n = 0, bad = 0;
+  $('rPasteIn').value.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach(l => {
+    const p = l.split(/\t|;/).map(x => x.trim());
+    if (p.length >= 3 && p[0] && p[2]){ t.rows.push({ id: 'r' + uid(), en: p[0], fig: p[1].replace(/^«|»$/g, ''), es: p[2], asoc: p.slice(3).join('; ') }); n++; }
+    else if (p.length === 2 && p[0] && p[1]){ t.rows.push({ id: 'r' + uid(), en: p[0], fig: '', es: p[1], asoc: '' }); n++; }
+    else bad++;
+  });
+  if (n){ save('tables'); $('rPasteIn').value = ''; $('rPasteBox').hidden = true; renderTablas(); }
+  status($('rPasteSt'), n ? '' : 'No he encontrado ninguna línea válida. Separa con «;»: inglés; pronunciación; español; asociación', 'err');
+  if (n && bad) alert('Añadidas ' + n + ' palabras. ' + bad + ' líneas no tenían el formato correcto.');
+};
+$('tNew').onclick = () => {
+  const t = { id: 't' + uid(), title: 'Tabla ' + (S.tables.length + 1), rows: [], frases: [], dialog: '', plan: {} };
+  S.tables.push(t); prefs.cur = t.id; savePrefs(); save('tables');
+  editRow = 'new'; renderTablas();
+  $('tRenBox').hidden = false; $('tRenIn').value = t.title; $('tRenIn').select();
+};
+$('tRename').onclick = () => { $('tRenBox').hidden = !$('tRenBox').hidden; $('tRenIn').value = cur().title; $('tRenIn').focus(); };
+$('tRenNo').onclick = () => { $('tRenBox').hidden = true; };
+$('tRenOk').onclick = () => { const v = $('tRenIn').value.trim(); if (!v) return; cur().title = v.slice(0, 60); save('tables'); $('tRenBox').hidden = true; renderTablas(); };
+$('tRenIn').onkeydown = e => { if (e.key === 'Enter') $('tRenOk').click(); };
+$('tDel').onclick = () => { $('tDelConfirm').hidden = !$('tDelConfirm').hidden; };
+$('tDelNo').onclick = () => { $('tDelConfirm').hidden = true; };
+$('tDelYes').onclick = async () => {
+  const t = cur();
+  for (const r of t.rows){ delete S.cards[rk(t, r)]; if (AUD.has(rk(t, r))){ await auDel(rk(t, r)); AUD.delete(rk(t, r)); } }
+  (t.frases || []).forEach(f => delete S.cards[fk(t, f)]);
+  S.tables = S.tables.filter(x => x !== t); prefs.cur = S.tables[0] ? S.tables[0].id : null; savePrefs();
+  $('tDelConfirm').hidden = true; save(); renderTablas();
+};
+
+/* ---------- Frases «a lo indio» ---------- */
+function renderFrases(t){
+  t.frases = t.frases || [];
+  $('fCount').textContent = t.frases.length;
+  const l = $('fList'); l.innerHTML = '';
+  t.frases.forEach(f => {
+    const d = document.createElement('div'); d.className = 'fitem';
+    d.innerHTML = '<span class="es">' + esc(f.es) + '</span><span style="display:flex;gap:4px"><button data-a="say" aria-label="Escuchar en inglés">🔊</button><button data-a="del" class="ghost" aria-label="Quitar frase">✕</button></span><span class="en">' + esc(f.en) + '</span>';
+    d.querySelector('[data-a="say"]').onclick = () => speak(f.en);
+    d.querySelector('[data-a="del"]').onclick = () => { t.frases = t.frases.filter(x => x !== f); delete S.cards[fk(t, f)]; save(); renderFrases(t); };
+    l.append(d);
+  });
+}
+$('fAdd').onclick = () => {
+  const es = $('fEs').value.trim(), en = $('fEn').value.trim();
+  if (!es || !en){ ($('fEs').value.trim() ? $('fEn') : $('fEs')).focus(); return; }
+  const t = cur(); t.frases.push({ id: 'f' + uid(), es, en }); save('tables');
+  $('fEs').value = $('fEn').value = ''; renderFrases(t); $('fEs').focus();
+};
+$('fEn').onkeydown = e => { if (e.key === 'Enter') $('fAdd').click(); };
+
+/* ---------- Diálogo ---------- */
+const SPK = /^\s*([A-Za-z][A-Za-z.'\- ]{0,22}?)\s*:\s*(.+)$/;
+const dlgLines = t => (t.dialog || '').split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => { const m = l.match(SPK); return m ? { who: m[1], text: m[2] } : { who: '', text: l }; });
+function renderDialog(t){
+  const l = $('dList'); l.innerHTML = '';
+  const lines = dlgLines(t);
+  if (!lines.length) l.innerHTML = '<p class="note">Esta tabla no tiene diálogo. Pulsa «Editar» y escribe uno, con el nombre delante de cada intervención: «Driver: Hello!».</p>';
+  lines.forEach(x => {
+    const d = document.createElement('div'); d.className = 'dline';
+    d.innerHTML = '<span class="who">' + esc(x.who) + '</span><span class="t">' + esc(x.text) + '</span><button aria-label="Escuchar">🔊</button>';
+    d.querySelector('button').onclick = () => speak(x.text);
+    l.append(d);
+  });
+  $('dEdit').hidden = true; $('dEditBtn').textContent = '✎ Editar';
+  $('dPlay').disabled = $('dSend').disabled = !lines.length;
+}
+let dRun = null;
+$('dPlay').onclick = async () => {
+  if (dRun){ dRun.stop = true; stopSound(); return; }
+  const t = cur(), lines = dlgLines(t), run = dRun = { stop: false };
+  $('dPlay').textContent = '■ Parar';
+  const rows = $('dList').querySelectorAll('.dline');
+  for (let i = 0; i < lines.length && !run.stop; i++){
+    rows.forEach((r, k) => r.style.outline = k === i ? '2px solid var(--accent)' : '');
+    await speak(lines[i].text); await wait(500, run);
+  }
+  rows.forEach(r => r.style.outline = '');
+  dRun = null; $('dPlay').textContent = '▶ Escuchar todo';
+};
+$('dEditBtn').onclick = () => {
+  const t = cur();
+  if ($('dEdit').hidden){ $('dEdit').value = t.dialog || ''; $('dEdit').hidden = false; $('dEditBtn').textContent = '✓ Guardar diálogo'; $('dEdit').focus(); }
+  else { t.dialog = $('dEdit').value.trim(); save('tables'); renderDialog(t); }
+};
+/* Lo mete como texto en «Inglés en Voz Alta» y abre allí el modo Diálogo */
+async function sendDialog(t){
+  const body = (t.dialog || '').trim();
+  if (!body){ status($('dSt'), 'Esta tabla no tiene diálogo.', 'err'); return; }
+  try {
+    const idb2 = await new Promise((res, rej) => { const r = indexedDB.open(U.dbName('ingles-en-voz-alta'), 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = rej; });
+    const texts = await new Promise(res => { const q = idb2.transaction('kv').objectStore('kv').get('texts'); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); });
+    const list = Array.isArray(texts) ? texts : [{ id: 1, title: 'Ejemplo · At the café', best: {}, body: "Anna: Good morning! Can I have a coffee, please?\nWaiter: Of course. Would you like milk with it?\nAnna: Yes, just a little. And a croissant, please.\nWaiter: Here you are. Anything else?\nAnna: No, that's all, thanks. Have a nice day!\nWaiter: You too. See you soon!" }];
+    const title = 'Campayo · ' + t.title.replace(/^\p{Extended_Pictographic}\s*/u, '');
+    const old = list.find(x => x.title === title);
+    if (old){ old.body = body; list.splice(list.indexOf(old), 1); list.unshift(old); }
+    else list.unshift({ id: Date.now(), title, best: {}, body });
+    await new Promise(res => { const tx = idb2.transaction('kv', 'readwrite'); tx.objectStore('kv').put(list, 'texts'); tx.oncomplete = res; tx.onerror = res; });
+    idb2.close(); U.changed('ingles');
+    lsSet('ingles-tab', 'dlg');
+    location.href = 'ingles.html';
+  } catch(e){ status($('dSt'), 'No he podido pasar el diálogo a Inglés en Voz Alta.', 'err'); }
+}
+$('dSend').onclick = () => sendDialog(cur());
+
+/* =====================================================================
+   PLANTILLA (la cartulina que tapa columnas)
+   ===================================================================== */
+let P = null;   // sesión: { items, i, step, ok, ko, requeued:Set, mode }
+['pSrc', 'pMode', 'pOrder'].forEach(k => $(k).onchange = () => { prefs[k] = $(k).value; savePrefs(); P = null; renderTplIntro(); });
+function tplItems(){
+  const mode = prefs.pMode, src = prefs.pSrc, t = cur();
+  const tabs = src === 'table' ? (t ? [t] : []) : S.tables;
+  let items = [];
+  if (mode === 'f'){
+    tabs.forEach(tb => (tb.frases || []).forEach(f => { if (src !== 'due' || isDue(fk(tb, f))) items.push({ t: tb, f }); }));
+  } else {
+    if (src === 'due') items = dueItems();
+    else tabs.forEach(tb => tb.rows.forEach(r => items.push({ t: tb, r })));
+    if (src === 'due'){ // primero lo que hay que repasar y después las nuevas, como mucho 12 nuevas por día
+      const rev = items.filter(x => !isNew(rk(x.t, x.r))), neu = items.filter(x => isNew(rk(x.t, x.r))).slice(0, 12);
+      items = rev.concat(neu);
+    }
+  }
+  return prefs.pOrder === 'mix' ? shuffle(items) : items;
+}
+function renderTplIntro(){
+  $('pSrc').value = prefs.pSrc; $('pMode').value = prefs.pMode; $('pOrder').value = prefs.pOrder;
+  refreshDue();
+  if (P && !P.done){ drawCard(); return; }
+  $('pCardBox').hidden = true; $('pProg').hidden = true; $('pStart').hidden = false; $('pInfo').hidden = false;
+  if (!P) $('pDone').hidden = true;
+  const items = tplItems(), d = dueCount();
+  const t = cur();
+  let info = '';
+  if (prefs.pSrc === 'due') info = prefs.pMode === 'f' ? items.length + ' frases para hoy.' : (d.rev ? d.rev + ' palabras para repasar' : 'Nada pendiente de repaso') + (d.neu ? ' y ' + Math.min(12, d.neu) + ' nuevas' + (d.neu > 12 ? ' (de ' + d.neu + ')' : '') : '') + '.';
+  else info = items.length + (prefs.pMode === 'f' ? ' frases' : ' palabras') + (prefs.pSrc === 'table' && t ? ' de «' + t.title + '».' : ' en total.');
+  if (prefs.pMode === 'w-en') info += ' Ves la palabra en inglés tapando lo demás: dila en voz alta, destapa la pronunciación para comprobarla, piensa qué significa, destapa el español y, por último, revive la asociación.';
+  if (prefs.pMode === 'w-es') info += ' Ves la palabra en español: recuerda la asociación, di la palabra en inglés y destapa para comprobar.';
+  if (prefs.pMode === 'f') info += ' Lee la frase «a lo indio» y dila en inglés en voz alta, sin miedo: el resultado no importa.';
+  $('pInfo').textContent = info;
+  $('pStart').disabled = !items.length;
+  $('pStart').textContent = P && P.done ? '↻ Otra ronda' : '▶ Empezar repaso';
+}
+$('pStart').onclick = () => {
+  const items = tplItems(); if (!items.length) return;
+  P = { items, i: 0, step: 0, ok: 0, ko: 0, requeued: new Set(), mode: prefs.pMode, wrong: [] };
+  $('pDone').hidden = true; drawCard();
+};
+const STEPS = { 'w-en': [['en'], ['fig'], ['es'], ['asoc']], 'w-es': [['es'], ['en', 'fig'], ['asoc']], 'f': [['fes'], ['fen']] };
+function drawCard(){
+  const it = P.items[P.i]; if (!it){ finishTpl(); return; }
+  $('pCardBox').hidden = false; $('pProg').hidden = false; $('pStart').hidden = true; $('pInfo').hidden = true;
+  $('pProg').textContent = (P.i + 1) + ' de ' + P.items.length;
+  $('pFrom').textContent = it.t.title;
+  const steps = STEPS[P.mode], shown = new Set(steps.slice(0, P.step + 1).flat()), last = P.step >= steps.length - 1;
+  const fresh = new Set((steps[P.step] || []));
+  if (P.mode === 'f'){
+    $('pTpl').hidden = true; $('pFr').hidden = false;
+    $('pFrEs').textContent = it.f.es;
+    $('pFrEn').textContent = it.f.en; $('pFrEn').hidden = !shown.has('fen');
+    $('pHint').textContent = last ? 'Repite la frase en inglés escuchando la voz nativa. ¿La dijiste bien?' : 'Dila en inglés en voz alta (con 🎤 compruebo si se entiende) y luego destapa.';
+  } else {
+    $('pTpl').hidden = false; $('pFr').hidden = true;
+    const r = it.r;
+    const cell = (k, label, val) => '<div class="cell ' + k + (shown.has(k) ? '' : ' cov') + (shown.has(k) && fresh.has(k) && P.step ? ' fresh' : '') + '"><span class="k">' + label + '</span><span class="v">' + esc(val || '—') + '</span></div>';
+    $('pTpl').innerHTML = cell('en', 'Inglés', r.en) + cell('fig', 'Pronunciación', r.fig ? '«' + r.fig + '»' : '') + cell('es', 'Español', r.es) + cell('asoc', 'Asociación inverosímil', r.asoc || '(sin asociación: invéntala en «Tablas»)');
+    const hints = P.mode === 'w-en'
+      ? ['Di la palabra en voz alta. Luego destapa la pronunciación para comprobar que la dices bien.', 'Repítela leyendo la pronunciación. ¿Qué significa en español? Piénsalo y destapa.', 'Ahora destapa la asociación y visualízala con intensidad.', 'Revive la escena unos segundos. ¿Te la sabías?']
+      : ['Recuerda la asociación y di la palabra en inglés en voz alta. Luego destapa.', 'Compara con lo que dijiste y escucha la voz nativa. Destapa la asociación.', 'Visualiza la escena. ¿Te la sabías?'];
+    $('pHint').textContent = hints[P.step] || '';
+  }
+  $('pNext').hidden = last;
+  $('pGrade').hidden = !last;
+  $('pMic').disabled = !SR;
+  $('pHeard').textContent = ''; $('pHeard').className = 'heard';
+}
+$('pNext').onclick = () => {
+  if (!P || P.done) return;
+  const steps = STEPS[P.mode]; if (P.step >= steps.length - 1) return;
+  P.step++; drawCard();
+  const it = P.items[P.i], now = steps[P.step];
+  if (now.includes('fig') || now.includes('fen')) speak(it.r ? it.r.en : it.f.en);
+};
+$('pSay').onclick = () => { if (!P) return; const it = P.items[P.i]; if (it) speak(it.r ? it.r.en : it.f.en); };
+$('pMic').onclick = async () => {
+  if (!P || curSR) return;
+  const it = P.items[P.i], target = it.r ? it.r.en : it.f.en;
+  stopSound();
+  $('pMic').classList.add('on'); $('pMic').textContent = '🎤 Te escucho…';
+  const { alts, err } = await hear(prefs.accent);
+  $('pMic').classList.remove('on'); $('pMic').textContent = '🎤 Decirla';
+  if (err && err !== 'no-speech' && err !== 'aborted'){ micError(err); }
+  const h = $('pHeard');
+  if (!alts.length){ h.className = 'heard ko'; h.innerHTML = 'No te he oído. Pulsa 🎤 y habla al terminar el aviso.'; return; }
+  const sc = matchScore(target, alts);
+  h.className = 'heard ' + (sc >= 0.99 ? 'ok' : 'ko');
+  h.innerHTML = (sc >= 0.99 ? '✓ Se entiende: ' : sc >= 0.5 ? '≈ Casi. Google entendió: ' : '✗ Google entendió: ') + '<b>' + esc(alts[0]) + '</b>' + (sc < 0.99 ? ' · Escucha la voz nativa y prueba otra vez.' : '');
+};
+function gradeTpl(ok){
+  if (!P || P.done) return;
+  const steps = STEPS[P.mode]; if (P.step < steps.length - 1) return;
+  const it = P.items[P.i], key = it.r ? rk(it.t, it.r) : fk(it.t, it.f);
+  const first = !P.requeued.has(key);
+  if (first) grade(key, ok);
+  if (ok) P.ok++; else {
+    P.ko++;
+    if (first){ P.requeued.add(key); P.items.push(it); P.wrong.push(it); }   // la que fallas vuelve al final de la ronda
+  }
+  P.i++; P.step = 0;
+  if (P.i >= P.items.length) finishTpl(); else drawCard();
+  refreshDue();
+}
+$('pOk').onclick = () => gradeTpl(true);
+$('pKo').onclick = () => gradeTpl(false);
+function finishTpl(){
+  P.done = true; $('pCardBox').hidden = true; $('pProg').hidden = true;
+  const d = $('pDone'); d.hidden = false;
+  const tot = P.items.length - P.requeued.size;
+  const firstOk = tot - P.wrong.length;
+  d.innerHTML = '<div class="summary"><div class="label">Ronda terminada</div><b>' + firstOk + ' de ' + tot + ' a la primera</b>' +
+    (P.wrong.length ? '<p class="note">Para repasar: ' + P.wrong.map(x => '<b>' + esc(x.r ? x.r.en : x.f.es) + '</b>').join(', ') + '. Vuelve a leer sus asociaciones y, si alguna no te dice nada, cámbiala por otra más absurda.</p>' : '<p class="note">¡Perfecto! Mañana volverán solo las que toque repasar.</p>') + '</div>';
+  renderTplIntro();
+}
+document.addEventListener('keydown', e => {
+  if ($('p-tpl').hidden || !P || P.done || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (e.key === ' ' || e.key === 'ArrowRight'){ e.preventDefault(); $('pNext').click(); }
+  else if (e.key === '1') $('pOk').click();
+  else if (e.key === '2') $('pKo').click();
+  else if (e.key.toLowerCase() === 'v') $('pSay').click();
+});
+
+/* =====================================================================
+   GRABAR (día 3)
+   ===================================================================== */
+let G = null;
+function setRange(id, outId, val, suffix){ $(id).value = val; $(outId).textContent = fmt(+val, +val % 1 ? 1 : 0) + suffix; }
+function renderRec(){
+  const t = cur(); if (!t) return;
+  $('gTitle').textContent = 'Tabla: ' + t.title;
+  $('gNative').value = prefs.gNative; $('gWhich').value = prefs.gWhich;
+  setRange('gLen', 'gLenO', prefs.gLen, ' s'); setRange('gGap', 'gGapO', prefs.gGap, ' s');
+  drawRecChips();
+}
+function drawRecChips(nowId){
+  const t = cur(), c = $('gChips'); c.innerHTML = '';
+  t.rows.forEach(r => {
+    const has = AUD.has(rk(t, r)), b = document.createElement('button');
+    b.className = 'chip' + (has ? ' done' : '') + (nowId === r.id ? ' now' : ''); b.type = 'button';
+    b.innerHTML = (has ? '▶ ' : '○ ') + esc(r.en);
+    b.title = has ? 'Escuchar mi grabación' : 'Sin grabar';
+    b.onclick = () => { if (has && !G){ stopSound(); playMine(t, r); } };
+    c.append(b);
+  });
+}
+$('gNative').onchange = () => { prefs.gNative = $('gNative').value; savePrefs(); };
+$('gWhich').onchange = () => { prefs.gWhich = $('gWhich').value; savePrefs(); };
+$('gLen').oninput = () => { prefs.gLen = +$('gLen').value; savePrefs(); setRange('gLen', 'gLenO', prefs.gLen, ' s'); };
+$('gGap').oninput = () => { prefs.gGap = +$('gGap').value; savePrefs(); setRange('gGap', 'gGapO', prefs.gGap, ' s'); };
+function stageRow(p, r, what){
+  $(p + 'What').textContent = what || '';
+  $(p + 'Big').textContent = r ? r.en : '';
+  $(p + 'Fig').textContent = r && r.fig ? '«' + r.fig + '»' : '';
+  $(p + 'Es').textContent = r ? r.es : '';
+  $(p + 'Asoc').textContent = r ? r.asoc || '' : '';
+}
+$('gGo').onclick = async () => {
+  const t = cur(); if (!t || G) return;
+  const rows = prefs.gWhich === 'missing' ? t.rows.filter(r => !AUD.has(rk(t, r))) : t.rows.slice();
+  if (!rows.length){ stageRow('g', null, 'Ya tienes todas grabadas. Elige «Todas las palabras» para volver a grabarlas.'); return; }
+  let stream;
+  try { stream = await getMic(); } catch(e){ micError('not-allowed'); return; }
+  const run = G = { stop: false, redo: false };
+  $('gGo').disabled = true; $('gStop').disabled = false; $('gRedo').disabled = false;
+  keepAwake(true);
+  let silent = 0;
+  for (let i = 0; i < rows.length && !run.stop; i++){
+    const r = rows[i]; run.redo = false;
+    drawRecChips(r.id);
+    $('gCount').textContent = '';
+    if (prefs.gNative === '1'){ stageRow('g', r, '🔊 Escucha cómo suena (' + (i + 1) + ' de ' + rows.length + ')'); await speak(r.en); await wait(250, run); if (run.stop) break; }
+    stageRow('g', r, '🔴 ¡Ahora tú! Di la palabra en inglés');
+    $('gStage').classList.add('recording');
+    await beep();
+    const raw = await recordFor(stream, prefs.gLen * 1000, run);
+    $('gStage').classList.remove('recording');
+    if (run.stop) break;
+    const c = await cleanClip(raw);
+    if (c.blob){ await auPut(rk(t, r), c.blob); AUD.add(rk(t, r)); silent = 0; }
+    else silent++;
+    drawRecChips(r.id);
+    if (silent >= 2){ stageRow('g', r, '⚠️ No se te oye. Revisa el micrófono y vuelve a empezar.'); break; }
+    if (!c.blob){ stageRow('g', r, '⚠️ No te he oído. Repetimos esta.'); await wait(1200, run); i--; continue; }
+    if (prefs.gGap){
+      stageRow('g', r, '👀 Repasa la fila entera y revive la asociación');
+      await wait(prefs.gGap * 1000, run, s => { $('gCount').textContent = s || ''; });
+    }
+    if (run.redo){ i--; }
+  }
+  const done = !run.stop;
+  G = null; releaseMic(); keepAwake(false);
+  $('gGo').disabled = false; $('gStop').disabled = true; $('gRedo').disabled = true; $('gCount').textContent = '';
+  const n = t.rows.filter(r => AUD.has(rk(t, r))).length;
+  if (done && !/⚠️/.test($('gWhat').textContent)){
+    stageRow('g', null, '✅ Grabación terminada: ' + n + ' de ' + t.rows.length + ' palabras. Mañana, a escucharla en «Escuchar».');
+    t.plan = t.plan || {}; if (n === t.rows.length && !t.plan[3]){ t.plan[3] = true; save('tables'); }
+  } else if (run.stop) stageRow('g', null, 'Grabación parada. Lo grabado se ha guardado.');
+  save('none'); drawRecChips();
+};
+$('gStop').onclick = () => { if (G){ G.stop = true; stopSound(); } };
+$('gRedo').onclick = () => { if (G) G.redo = true; };
+
+/* =====================================================================
+   ESCUCHAR (día 4 en adelante) y la cinta .wav
+   ===================================================================== */
+let E = null;
+function renderEar(){
+  const t = cur();
+  $('eTitle').textContent = prefs.eSrc === 'all' ? 'Todas las tablas' : 'Tabla: ' + (t ? t.title : '');
+  ['eVoice', 'eAns', 'eSrc', 'eOrder'].forEach(k => $(k).value = prefs[k]);
+  $('eAccent').value = prefs.accent;
+  $('eLoop').checked = prefs.eLoop; $('eHide').checked = prefs.eHide;
+  setRange('eGap', 'eGapO', prefs.eGap, ' s');
+}
+['eVoice', 'eAns', 'eSrc', 'eOrder'].forEach(k => $(k).onchange = () => { prefs[k] = $(k).value; savePrefs(); renderEar(); });
+$('eAccent').onchange = () => { prefs.accent = $('eAccent').value; savePrefs(); };
+$('eLoop').onchange = () => { prefs.eLoop = $('eLoop').checked; savePrefs(); };
+$('eHide').onchange = () => { prefs.eHide = $('eHide').checked; savePrefs(); };
+$('eGap').oninput = () => { prefs.eGap = +$('eGap').value; savePrefs(); setRange('eGap', 'eGapO', prefs.eGap, ' s'); };
+function earItems(){
+  const tabs = prefs.eSrc === 'all' ? S.tables : [cur()].filter(Boolean);
+  const items = []; tabs.forEach(t => t.rows.forEach(r => items.push({ t, r })));
+  return items;
+}
+$('eGo').onclick = async () => {
+  if (E) return;
+  let items = earItems();
+  if (!items.length){ status($('eSt'), 'No hay palabras.', 'err'); return; }
+  const mineMissing = items.filter(x => !AUD.has(rk(x.t, x.r))).length;
+  if (prefs.eVoice === 'mine' && mineMissing === items.length){ status($('eSt'), 'Aún no has grabado ninguna: uso la voz nativa. Graba tu voz en «Grabar».'); }
+  else if (prefs.eVoice !== 'native' && mineMissing) status($('eSt'), mineMissing + ' palabras sin grabar: en esas oirás la voz nativa.');
+  else status($('eSt'), '');
+  const run = E = { stop: false };
+  $('eGo').disabled = true; $('eStop').disabled = false;
+  keepAwake(true);
+  do {
+    const list = prefs.eOrder === 'mix' ? shuffle(items) : items;
+    for (let i = 0; i < list.length && !run.stop; i++){
+      const { t, r } = list[i];
+      const hide = prefs.eHide;
+      $('eEar').hidden = !hide;
+      stageRow('e', hide ? null : { en: r.en, fig: r.fig, es: '', asoc: '' }, '🎧 Escucha (' + (i + 1) + ' de ' + list.length + ')');
+      $('eCount').textContent = '';
+      const has = AUD.has(rk(t, r));
+      if (prefs.eVoice === 'native' || prefs.eVoice === 'both' || !has){ await speak(r.en); if (run.stop) break; await wait(300, run); }
+      if ((prefs.eVoice === 'mine' || prefs.eVoice === 'both') && has){ await playMine(t, r); }
+      if (run.stop) break;
+      $('eWhat').textContent = '🗣️ Repítela en voz alta y tradúcela al español';
+      await wait(prefs.eGap * 1000, run, s => { $('eCount').textContent = s || ''; });
+      if (run.stop) break;
+      if (prefs.eAns !== 'none'){
+        $('eEar').hidden = true;
+        stageRow('e', r, '✅ Respuesta');
+        if (prefs.eAns === 'voice') await speakEs(r.es); else await wait(1800, run);
+        await wait(700, run);
+      }
+    }
+  } while (prefs.eLoop && !run.stop);
+  E = null; keepAwake(false);
+  $('eGo').disabled = false; $('eStop').disabled = true; $('eCount').textContent = ''; $('eEar').hidden = true;
+  stageRow('e', null, run.stop ? 'Parado.' : '👏 Terminado. Si quieres, márcalo como hecho en el plan de 7 días.');
+};
+$('eStop').onclick = () => { if (E){ E.stop = true; stopSound(); } };
+/* La «cinta»: todas tus grabaciones seguidas, con el silencio para repetir y traducir */
+$('eTape').onclick = async () => {
+  const items = earItems().filter(x => AUD.has(rk(x.t, x.r)));
+  if (!items.length){ status($('eSt'), 'Primero graba tu voz en «Grabar».', 'err'); return; }
+  status($('eSt'), 'Preparando la cinta…');
+  try {
+    const gap = Math.round(prefs.eGap * SR_OUT), lead = Math.round(0.8 * SR_OUT), parts = [];
+    let total = lead;
+    for (const x of items){ const ab = await decode(await auGet(rk(x.t, x.r))); const d = ab.getChannelData(0); parts.push(d); total += d.length + gap; }
+    const out = new Float32Array(total); let p = lead;
+    parts.forEach(d => { out.set(d, p); p += d.length + gap; });
+    const blob = encodeWav(out, SR_OUT);
+    const name = 'cinta-' + (prefs.eSrc === 'all' ? 'todas' : cur().title.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')) + '.wav';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    status($('eSt'), 'Cinta descargada: ' + items.length + ' palabras, ' + Math.round(total / SR_OUT) + ' segundos.', 'ok');
+  } catch(e){ status($('eSt'), 'No he podido preparar la cinta en este navegador.', 'err'); }
+};
+
+stopAll = () => {
+  if (G) G.stop = true; if (E) E.stop = true; if (dRun) dRun.stop = true;
+  try { curSR && curSR.abort(); } catch(e){}
+  stopSound();
+};
+
+/* =====================================================================
+   EL MÉTODO + IA para sugerir asociaciones
+   ===================================================================== */
+function renderMet(){
+  $('mSteps').innerHTML = DAYS.map(d => '<li><div><b>' + d[0] + '</b><span>' + d[1] + '</span></div></li>').join('');
+  aiUI();
+}
+const PROVS = {
+  gemini: { name: 'Gemini', keyLS: 'ingles-gemini-key', modelLS: 'ingles-gemini-model', def: 'gemini-flash-latest',
+    help: 'Gemini tiene capa gratuita. Saca tu clave en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.' },
+  claude: { name: 'Claude', keyLS: 'ingles-claude-key', modelLS: 'ingles-claude-model', def: '',
+    help: 'Claude es de pago por uso (muy poco por sugerencia). Saca tu clave en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.' },
+  deepseek: { name: 'DeepSeek', keyLS: 'ingles-deepseek-key', modelLS: 'ingles-deepseek-model', def: 'deepseek-chat',
+    help: 'DeepSeek es de pago por uso y muy barato. Saca tu clave en <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a>.' }
+};
+const provId = () => { const p = lsGet('ingles-ai-prov', 'gemini'); return PROVS[p] ? p : 'gemini'; };
+function aiUI(){
+  const p = PROVS[provId()], has = !!lsGet(p.keyLS, '');
+  $('aiProv').value = provId(); $('aiHelp').innerHTML = p.help;
+  $('aiSum').textContent = '✨ IA para sugerir asociaciones · ' + p.name + (has ? ' · clave guardada ✓' : ' · falta su clave');
+  $('aiKey').value = ''; $('aiKey').placeholder = has ? 'Clave guardada. Pega otra para cambiarla.' : 'Pega aquí tu clave de ' + p.name;
+}
+$('aiProv').onchange = () => { lsSet('ingles-ai-prov', $('aiProv').value); aiUI(); };
+$('aiSave').onclick = () => { const k = $('aiKey').value.trim(); if (!k){ status($('aiSt'), 'Pega primero la clave.', 'err'); return; } lsSet(PROVS[provId()].keyLS, k); aiUI(); status($('aiSt'), 'Clave guardada. Pruébala con ✨ en cualquier palabra.', 'ok'); };
+$('aiDel').onclick = () => { lsSet(PROVS[provId()].keyLS, ''); aiUI(); status($('aiSt'), 'Clave borrada de este navegador.'); };
+function aiErr(name, code, msg){
+  if (code === 401 || (code === 400 && /api.?key/i.test(msg || ''))) return 'La clave de ' + name + ' no es válida.';
+  if (code === 402 || /credit|balance/i.test(msg || '')) return 'Tu cuenta de ' + name + ' no tiene saldo.';
+  if (code === 404) return 'Ese modelo de ' + name + ' ya no existe. Elige otro en Inglés en Voz Alta → Corregir.';
+  if (code === 429) return 'Has llegado al límite de ' + name + '. Espera un minuto.';
+  if (code >= 500) return name + ' está saturado. Prueba en unos segundos.';
+  return msg || 'No he podido hablar con ' + name + '.';
+}
+async function aiFetch(p, url, opt){
+  let r;
+  try { r = await fetch(url, opt); } catch(e){ throw new Error('No he podido conectar con ' + p.name + '. Comprueba internet.'); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(aiErr(p.name, r.status, d.error && (d.error.message || d.error)));
+  return d;
+}
+function aiPrompt(en, es){
+  return 'Eres experto en el método de memorización de Ramón Campayo para aprender idiomas con «asociaciones inverosímiles». ' +
+    'Un adulto español está aprendiendo inglés básico. Palabra inglesa: «' + en + '»' + (es ? ', con el significado «' + es + '»' : '') + '.\n' +
+    'Devuelve:\n' +
+    '- "fig": su pronunciación figurada escrita como la leería un español (ortografía española, sin alfabeto fonético), marcando con tilde la sílaba tónica. Ejemplos: greet → grit, believe → bilí:v, parcel → pársel, thank you → zénkiu, hello → jelóu.\n' +
+    '- "es": su significado principal en español, en minúsculas, una o dos palabras' + (es ? ' (usa «' + es + '»)' : '') + '.\n' +
+    '- "options": 3 asociaciones inverosímiles distintas, en español de España. Cada una es UNA frase corta (máximo 20 palabras), absurda, exagerada y muy visual, que une el significado español con una palabra española que SUENE parecido a la palabra inglesa o a su pronunciación figurada (la palabra clave). ' +
+    'Escribe en MAYÚSCULAS el significado y la palabra clave. Ejemplo para greet/saludar: «Es bueno SALUDAR a GRITOS, así te oye todo el barrio». Cuando encaje, usa escenas de la calle y de un repartidor entregando paquetes.\n' +
+    'Responde SOLO con un objeto JSON válido, sin más texto: {"fig": "...", "es": "...", "options": ["...", "...", "..."]}';
+}
+async function suggest(en, es){
+  const id = provId(), p = PROVS[id], key = lsGet(p.keyLS, '');
+  if (!key) throw new Error('Falta la clave de ' + p.name + '. Ponla en «💡 El método» → IA (o en Inglés en Voz Alta → Corregir).');
+  let model = lsGet(p.modelLS, p.def), raw = '';
+  const prompt = aiPrompt(en, es);
+  if (id === 'gemini'){
+    const d = await aiFetch(p, 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: 'application/json' } })
+    });
+    const c = d.candidates && d.candidates[0];
+    raw = c && c.content && c.content.parts ? c.content.parts.map(x => x.text || '').join('') : '';
+  } else if (id === 'claude'){
+    const hdr = { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true', 'content-type': 'application/json' };
+    if (!model){
+      const m = await aiFetch(p, 'https://api.anthropic.com/v1/models?limit=100', { headers: hdr });
+      const ids = (m.data || []).map(x => x.id);
+      model = ids.find(x => /haiku/.test(x)) || ids.find(x => /sonnet/.test(x)) || ids[0];
+      if (model) lsSet(p.modelLS, model);
+    }
+    const d = await aiFetch(p, 'https://api.anthropic.com/v1/messages', { method: 'POST', headers: hdr, body: JSON.stringify({ model, max_tokens: 700, messages: [{ role: 'user', content: prompt }] }) });
+    raw = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  } else {
+    const d = await aiFetch(p, 'https://api.deepseek.com/chat/completions', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: 700, temperature: 0.9, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Respondes solo con JSON.' }, { role: 'user', content: prompt }] })
+    });
+    const m = d.choices && d.choices[0] && d.choices[0].message; raw = m ? m.content || '' : '';
+  }
+  const mm = raw.match(/\{[\s\S]*\}/);
+  let j; try { j = JSON.parse(mm ? mm[0] : raw); } catch(e){ throw new Error('La respuesta de ' + p.name + ' llegó rota. Vuelve a pulsar ✨.'); }
+  return { fig: String(j.fig || '').replace(/^«|»$/g, ''), es: String(j.es || ''), options: (Array.isArray(j.options) ? j.options : []).map(String).filter(Boolean).slice(0, 4) };
+}
+
+/* =====================================================================
+   Copia de seguridad (con grabaciones) y Google Drive
+   ===================================================================== */
+const toDataURL = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(blob); });
+async function fromDataURL(u){ return await (await fetch(u)).blob(); }
+async function buildBackup(){
+  const audio = {};
+  for (const k of AUD){ const b = await auGet(k); if (b){ const u = await toDataURL(b); if (u) audio[k] = u; } }
+  return new Blob([JSON.stringify({ app: 'metodo-campayo', v: 1, tables: S.tables, cards: S.cards, audio })], { type: 'application/json' });
+}
+async function applyBackup(d, mode){
+  if (!d || d.app !== 'metodo-campayo') throw new Error('bad');
+  let nt = 0, na = 0;
+  if (mode === 'replace'){
+    for (const k of [...AUD]){ await auDel(k); AUD.delete(k); }
+    S.tables = Array.isArray(d.tables) ? d.tables : []; S.cards = d.cards || {};
+    nt = S.tables.length;
+  } else {
+    (d.tables || []).forEach(t => {
+      const mine = S.tables.find(x => x.id === t.id);
+      if (!mine){ S.tables.push(t); nt++; return; }
+      t.rows.forEach(r => { if (!mine.rows.some(x => x.id === r.id)) mine.rows.push(r); });
+      (t.frases || []).forEach(f => { mine.frases = mine.frases || []; if (!mine.frases.some(x => x.id === f.id)) mine.frases.push(f); });
+      mine.plan = Object.assign({}, t.plan || {}, mine.plan || {});
+      if (!mine.dialog && t.dialog) mine.dialog = t.dialog;
+    });
+    Object.entries(d.cards || {}).forEach(([k, c]) => { const m = S.cards[k]; if (!m || (c.last || 0) > (m.last || 0)) S.cards[k] = c; });
+  }
+  for (const [k, u] of Object.entries(d.audio || {})){
+    if (mode !== 'replace' && AUD.has(k)) continue;
+    try { await auPut(k, await fromDataURL(u)); AUD.add(k); na++; } catch(e){}
+  }
+  if (!S.tables.length) S.tables = seedTables();
+  if (!S.tables.some(t => t.id === prefs.cur)){ prefs.cur = S.tables[0].id; savePrefs(); }
+  save(); renderTablas();
+  return { nt, na };
+}
+let nag = null;
+$('bkDown').onclick = async () => {
+  status($('bkStatus'), 'Preparando la copia…');
+  const blob = await buildBackup();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'metodo-campayo-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  U.backedUp('campayo'); nag && nag.refresh();
+  status($('bkStatus'), 'Copia guardada (' + Math.round(blob.size / 1024) + ' KB, con ' + AUD.size + ' grabaciones).', 'ok');
+};
+$('bkIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    const r = await applyBackup(d, 'merge');
+    status($('bkStatus'), 'Copia importada: ' + r.nt + ' tablas nuevas y ' + r.na + ' grabaciones.', 'ok');
+  } catch(err){ status($('bkStatus'), 'Ese archivo no es una copia del Método Campayo.', 'err'); }
+};
+window.MiVozDrive && MiVozDrive.mount({
+  name: 'campayo', ext: 'json', mime: 'application/json', what: 'tus tablas, repasos y grabaciones',
+  count: () => S.tables.length + AUD.size,
+  build: buildBackup,
+  apply: async (blob, mode) => {
+    let d; try { d = JSON.parse(await blob.text()); } catch(err){ throw MiVozDrive.bad(); }
+    if (!d || d.app !== 'metodo-campayo') throw MiVozDrive.bad();
+    const r = await applyBackup(d, mode);
+    return mode === 'merge' ? 'He juntado lo de Drive con lo de este aparato: ' + r.nt + ' tablas nuevas y ' + r.na + ' grabaciones.' : 'Traído de Drive: ' + S.tables.length + ' tablas y ' + AUD.size + ' grabaciones.';
+  },
+  done: () => { nag && nag.refresh(); }
+}, $('driveBox'), $('driveChip'));
+
+/* =====================================================================
+   Arranque
+   ===================================================================== */
+(async () => {
+  loadPrefs();
+  db = await openDB();
+  const [t, c, keys] = await Promise.all([kvGet('tables'), kvGet('cards'), auKeys()]);
+  S.tables = Array.isArray(t) ? t : seedTables();
+  S.cards = c || {};
+  (keys || []).forEach(k => AUD.add(k));
+  if (!t) kvPut('tables', S.tables);
+  if (!S.tables.some(x => x.id === prefs.cur) && S.tables[0]) prefs.cur = S.tables[0].id;
+  if (!SR) $('pMic').title = 'Para comprobar la pronunciación abre la página en Chrome';
+  nag = U.reminder({ el: $('bkNag'), page: 'campayo', what: 'grabaciones y tablas', min: 6, count: () => AUD.size, run: () => $('bkDown').click() });
+  const tab = lsGet('campayo-tab', 'tablas');
+  showTab(TABS.includes(tab) ? tab : 'tablas');
+})();
+})();
+</script>
+<script>
+/* Botón «Instalar como app» */
+(() => {
+  const btn = document.getElementById('installBtn'), help = document.getElementById('installHelp');
+  const hosted = location.hostname.endsWith('github.io') || location.hostname === 'localhost';
+  if ('serviceWorker' in navigator && hosted) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (!btn) return;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  if (hosted && !standalone) btn.hidden = false;
+  help.textContent = ios
+    ? 'En iPhone o iPad: abre esta página en Safari, pulsa el botón Compartir y elige «Añadir a pantalla de inicio».'
+    : 'Abre el menú ⋮ de Chrome y elige «Instalar aplicación» o «Añadir a pantalla de inicio».';
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; if (!standalone) btn.hidden = false; });
+  addEventListener('appinstalled', () => { btn.hidden = true; help.hidden = true; });
+  btn.onclick = async () => {
+    if (deferred){ deferred.prompt(); const ch = await deferred.userChoice.catch(() => ({})); deferred = null; if (ch.outcome === 'accepted') btn.hidden = true; return; }
+    help.hidden = !help.hidden;
+  };
+})();
+</script>
+</body>
+</html>
